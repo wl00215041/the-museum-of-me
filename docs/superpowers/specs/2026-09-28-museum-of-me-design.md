@@ -62,11 +62,12 @@
   - 若每站時間過長（> 8 s），多出的時間平均分給鏡頭移動，放慢速度。
 - `plan` 輸出：`Timeline = { total, scenes: [{ id, start, end }], galleryStops: [{ start, end, photoIndices }] }`。
 - 不變式：場景首尾相接、無間隙；`scenes` 總長 = `total`；主展廳各站無重複照片。
+- 鏡頭節奏（`camera` 模組）：每站停留 `clamp(站長 × 0.4, 0.5 s, 5 s)`；場景內其餘時間依移動距離（含轉向角度）比例分配給移動，因此鏡頭在場景內速度均勻，各站停留時間與 `galleryStops` 大致對齊但不要求逐站精確吻合。
 
 ## 4. 視覺風格
 
 - 純白牆面、淺灰微反光地板、柔和天光，搭配畫框上方的聚光燈。
-- 色調映射 AgX（或 ACES），sRGB 輸出。
+- 色調映射 Khronos PBR Neutral（比 AgX/ACES 更忠實保留照片原色），sRGB 輸出。
 - 後製：環境光遮蔽（N8AO 或 SSAO）、輕微暈影、膠片顆粒（以影格編號作為雜訊 seed，確保可重現）。
 - 畫框：細黑或白色木框加白色卡紙襯邊；照片依原始長寬比放置，不裁切。
 - 所有文字（標題、解說牌、關鍵字、片尾）使用 canvas 2D 繪製成貼圖，字型堆疊為 `"Noto Sans TC", "Noto Sans JP", system-ui, sans-serif`（Noto Sans TC 以 Google Fonts 載入，並在繪製前等待 `document.fonts.ready`）。
@@ -81,7 +82,7 @@
 | 模組 | 職責 | 介面（摘要） |
 |---|---|---|
 | `src/input/` | 表單 UI、驗證、拖曳排序 | 產出 `ProjectInput` |
-| `src/assets/` | 照片解碼（`createImageBitmap(file, { imageOrientation: 'from-image' })`）、縮至最長邊 2048 px、建立 `THREE.Texture`；canvas 文字貼圖 | `loadPhotos(files) → Photo[]`、`makeTextTexture(opts) → Texture` |
+| `src/assets/` | 照片解碼（`createImageBitmap(file, { imageOrientation: 'from-image' })`）、縮至最長邊 1600 px（60 張 × 2048² 含 mipmap 約需 1 GB GPU 記憶體，過高）、建立 `THREE.Texture`；canvas 文字貼圖 | `loadPhotos(files) → Photo[]`、`makeTextTexture(opts) → Texture` |
 | `src/plan/` | 純函式時長分配（§3.1） | `buildTimeline(input) → Timeline` |
 | `src/museum/` | 依 Timeline 程式化建構建築與各場景裝置；每個場景一個檔案 | `buildMuseum(timeline, assets) → { scene, anchors, update(t) }` |
 | `src/camera/` | 由場景錨點生成鏡頭路徑（CatmullRom 曲線＋緩動＋停留） | `buildCameraPath(timeline, anchors) → { poseAt(t) }` |
@@ -108,6 +109,7 @@
 | 情境 | 處理 |
 |---|---|
 | 不支援 WebCodecs／AVC 編碼 | 以 `canEncodeVideo` 偵測；改用 VP9 + Opus 的 WebM；皆不支援則提示改用 Chrome/Edge |
+| 支援 AVC 但不支援 AAC 編碼 | 註冊 `@mediabunny/aac-encoder`（WASM AAC-LC）後照常輸出 MP4 |
 | 照片解碼失敗 | 略過該張並列出失敗檔名 |
 | 照片少於 3 張 | 禁用「生成」按鈕並提示 |
 | 照片超過 60 張 | 只取前 60 張並提示 |
