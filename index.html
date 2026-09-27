@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Museum of Me</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;500;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="masthead">
+      <p class="eyebrow">An exhibition of you</p>
+      <h1>The Museum of Me</h1>
+      <p class="lede">選擇照片，生成一段在純白美術館中漫步的紀念影片。</p>
+    </header>
+    <main>
+      <section id="setup">
+        <form id="setup-form" novalidate>
+          <fieldset class="block">
+            <legend>1. 照片</legend>
+            <label id="dropzone" class="dropzone" for="photo-input">
+              <strong>點此選擇或拖放照片</strong>
+              <span>3–60 張，可拖曳調整順序；勾選「主視覺」指定大廳與終章的肖像</span>
+            </label>
+            <input id="photo-input" type="file" accept="image/*" multiple hidden />
+            <p id="setup-notice" class="notice" role="status"></p>
+            <ol id="photo-list" class="photo-list"></ol>
+          </fieldset>
+          <fieldset class="block">
+            <legend>2. 展覽資訊</legend>
+            <label class="field"><span>主角名字 *</span><input id="name" maxlength="40" autocomplete="off" /></label>
+            <label class="field"><span>副標題</span><input id="subtitle" maxlength="60" placeholder="例：2026 畢業紀念" /></label>
+            <label class="field"><span>日期</span><input id="date" type="date" /></label>
+            <label class="field"><span>關鍵字／短語</span><textarea id="keywords" rows="3" placeholder="以逗號或換行分隔，最多 40 個"></textarea></label>
+          </fieldset>
+          <fieldset class="block">
+            <legend>3. 影片設定</legend>
+            <label class="field"><span>長度</span>
+              <select id="duration">
+                <option value="auto" selected>自動（依照片數）</option>
+                <option value="30">30 秒</option>
+                <option value="60">60 秒</option>
+                <option value="90">90 秒</option>
+                <option value="120">120 秒</option>
+              </select>
+            </label>
+            <label class="field"><span>解析度</span>
+              <select id="resolution">
+                <option value="1080p" selected>1080p（1920×1080）</option>
+                <option value="720p">720p（1280×720）</option>
+              </select>
+            </label>
+            <label class="field"><span>配樂（選填）</span><input id="music" type="file" accept="audio/*" /><small>未上傳時使用內建鋼琴配樂</small></label>
+          </fieldset>
+          <p id="setup-errors" class="errors" role="alert"></p>
+          <button id="generate" class="primary" type="submit" disabled>布置展廳</button>
+        </form>
+      </section>
+      <section id="stage" hidden>
+        <div id="viewport" class="viewport"></div>
+        <div class="controls">
+          <button id="play" type="button" class="icon" aria-label="播放">▶</button>
+          <input id="scrub" type="range" min="0" max="1" step="0.01" value="0" aria-label="時間軸" />
+          <span id="time" class="time">0:00 / 0:00</span>
+        </div>
+        <div class="actions">
+          <button id="back" type="button">返回編輯</button>
+          <button id="export" type="button" class="primary">匯出影片</button>
+        </div>
+        <div id="export-panel" class="export-panel" hidden>
+          <progress id="export-progress" max="1" value="0"></progress>
+          <span id="export-label">準備中…</span>
+          <button id="cancel-export" type="button">取消</button>
+        </div>
+        <p id="stage-status" class="notice" role="status"></p>
+      </section>
+      <div id="busy" class="busy" hidden>
+        <div class="busy-card"><div class="spinner"></div><p id="busy-label">準備中…</p></div>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
