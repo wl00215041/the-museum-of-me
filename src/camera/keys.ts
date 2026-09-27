@@ -88,9 +88,10 @@ function sceneWaypoints(span: SceneSpan, room: Room, layout: Layout, timeline: T
       });
     case 'keywords':
       return [
-        { pos: [0, EYE, z0 - 2.5], target: [0, 4.2, zc] },
-        { pos: [3.2, 2.0, zc + 2.5], target: [0, 4.4, zc - 1] },
-        { pos: [-3.0, 2.0, zc - 2.0], target: [0, 4.4, zc - 2] },
+        // Drift across the front of the word cloud, then slip underneath it to the exit.
+        { pos: [0, EYE, z0 - 2.5], target: [0, 4.4, zc] },
+        { pos: [2.6, 1.9, zc + 5], target: [0, 3.9, zc] },
+        { pos: [-2.6, 1.9, zc + 4.6], target: [0, 3.9, zc - 0.5] },
         { pos: [-0.8, EYE, z1 + 2.5], target: [0, EYE, z1 - 4] },
       ];
     case 'network': {
@@ -98,8 +99,8 @@ function sceneWaypoints(span: SceneSpan, room: Room, layout: Layout, timeline: T
       const c = layout.network.center;
       return [
         { pos: [0, EYE, z0 - 2.5], target: c },
-        { pos: [5.2, 2.6, zc + 2.2], target: c },
-        { pos: [5.4, 3.0, zc - 2.4], target: c },
+        { pos: [6.2, 3.6, zc + 3], target: c },
+        { pos: [6.4, 3.9, zc - 2.6], target: c },
         { pos: [1.8, EYE, z1 + 2.2], target: [0, EYE, z1 - 4] },
       ];
     }

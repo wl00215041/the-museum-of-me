@@ -15,7 +15,7 @@
   "dependencies": {
     "@mediabunny/aac-encoder": "1.60",
     "mediabunny": "1.60",
-    "n8ao": "2.0",
+    "n8ao": "^2.0.1",
     "postprocessing": "6.39",
     "three": "^0.186.1"
   },

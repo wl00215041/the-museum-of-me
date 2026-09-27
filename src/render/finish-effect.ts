@@ -20,7 +20,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   c = mix(c, vec3(1.0), white);
   vec4 k = texture2D(card, uv);
   c = mix(c, k.rgb, k.a * cardOpacity);
-  outputColor = vec4(c, inputColor.a);
+  outputColor = vec4(c, 1.0); // video frames are always opaque
 }
 `;
 
