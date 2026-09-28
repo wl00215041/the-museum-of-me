@@ -1,0 +1,11 @@
+[
+  { "name": "opening: turn parallel and move in", "from": 0, "to": 10 },
+  { "name": "white wall: constant truck", "from": 10, "to": 31 },
+  { "name": "Friends → Photos: pull back and rise", "from": 32, "to": 53 },
+  { "name": "Location: truck and move in", "from": 57, "to": 64 },
+  { "name": "Words: walk up to the LED wall", "from": 66, "to": 91 },
+  { "name": "turn right off the LED wall", "from": 92, "to": 94 },
+  { "name": "hall: orbit the thumb", "from": 95, "to": 112 },
+  { "name": "Videos wall: constant truck", "from": 113, "to": 121 },
+  { "name": "robot room: orbit and move in", "from": 128, "to": 150 }
+]

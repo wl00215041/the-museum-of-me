@@ -1,0 +1,32 @@
+{
+  "name": "the-museum-of-me",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "fixtures": "node scripts/make-fixtures.mjs",
+    "compare": "playwright test tests/e2e/acceptance.spec.ts",
+    "motion": "playwright test tests/e2e/acceptance.spec.ts -g motion"
+  },
+  "dependencies": {
+    "@mediabunny/aac-encoder": "1.60",
+    "mediabunny": "1.60",
+    "n8ao": "^2.0.1",
+    "postprocessing": "6.39",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63",
+    "@types/node": "^24.19.0",
+    "@types/three": "^0.186.0",
+    "typescript": "5.9",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}
