@@ -22,11 +22,25 @@
             <legend>1. 照片</legend>
             <label id="dropzone" class="dropzone" for="photo-input">
               <strong>點此選擇或拖放照片</strong>
-              <span>3–60 張，可拖曳調整順序；勾選「主視覺」指定大廳與終章的肖像</span>
+              <span>3–500 張；可拖曳縮圖調整順序，點選縮圖可編輯說明文字或設為主視覺</span>
             </label>
             <input id="photo-input" type="file" accept="image/*" multiple hidden />
             <p id="setup-notice" class="notice" role="status"></p>
-            <ol id="photo-list" class="photo-list"></ol>
+            <div id="photo-detail" class="photo-detail" hidden>
+              <canvas id="detail-preview" width="240" height="180"></canvas>
+              <div class="detail-fields">
+                <p id="detail-index" class="detail-index"></p>
+                <label class="field"><span>說明文字</span><input id="detail-caption" maxlength="80" placeholder="說明文字（選填）" /></label>
+                <div class="detail-actions">
+                  <button id="detail-portrait" type="button">設為主視覺</button>
+                  <button id="detail-left" type="button" aria-label="往前移">←</button>
+                  <button id="detail-right" type="button" aria-label="往後移">→</button>
+                  <button id="detail-remove" type="button">移除</button>
+                </div>
+              </div>
+            </div>
+            <p id="photo-count" class="notice">0 / 500 張</p>
+            <ol id="photo-grid" class="photo-grid"></ol>
           </fieldset>
           <fieldset class="block">
             <legend>2. 展覽資訊</legend>
@@ -44,6 +58,7 @@
                 <option value="60">60 秒</option>
                 <option value="90">90 秒</option>
                 <option value="120">120 秒</option>
+                <option value="music" disabled>配合音樂長度（需上傳音樂）</option>
               </select>
             </label>
             <label class="field"><span>解析度</span>
@@ -52,7 +67,14 @@
                 <option value="720p">720p（1280×720）</option>
               </select>
             </label>
-            <label class="field"><span>配樂（選填）</span><input id="music" type="file" accept="audio/*" /><small>未上傳時使用內建鋼琴配樂</small></label>
+            <label class="field"><span>配樂</span>
+              <select id="music-style">
+                <option value="airy" selected>空靈鋼琴（致敬原作氛圍）</option>
+                <option value="calm">靜謐鋼琴</option>
+                <option value="upload">上傳音樂…</option>
+              </select>
+            </label>
+            <label id="music-upload" class="field" hidden><span>音樂檔</span><input id="music" type="file" accept="audio/*" /><small>可上傳你持有的原作配樂，並把長度設為「配合音樂長度」</small></label>
           </fieldset>
           <p id="setup-errors" class="errors" role="alert"></p>
           <button id="generate" class="primary" type="submit" disabled>布置展廳</button>

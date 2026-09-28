@@ -1,12 +1,19 @@
 import type { ProjectInput, Resolution } from '../types';
-import { MAX_PHOTOS, capPhotos, isImageFile, parseDuration, parseKeywords, validateSetup } from './validate';
+import { MAX_PHOTOS, capPhotos, isImageFile, parseDuration, parseKeywords, parseMusicStyle, validateSetup } from './validate';
+
+export interface PreviewSource {
+  thumb(file: Blob, maxEdge: number): Promise<{ bitmap: ImageBitmap }>;
+}
 
 interface PhotoEntry {
   id: number;
   file: File;
-  url: string;
   caption: string;
+  preview: ImageBitmap | null;
+  requested: boolean;
 }
+
+const PREVIEW_EDGE = 160;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -18,7 +25,17 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-export function mountSetupForm(root: HTMLElement, onSubmit: (input: ProjectInput) => void): void {
+function drawCover(canvas: HTMLCanvasElement, bitmap: ImageBitmap): void {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const scale = Math.max(canvas.width / bitmap.width, canvas.height / bitmap.height);
+  const w = bitmap.width * scale;
+  const h = bitmap.height * scale;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+}
+
+export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSubmit: (input: ProjectInput) => void): void {
   const q = <T extends Element>(selector: string): T => {
     const node = root.querySelector<T>(selector);
     if (!node) throw new Error(`${selector} is missing from the setup form`);
@@ -27,8 +44,17 @@ export function mountSetupForm(root: HTMLElement, onSubmit: (input: ProjectInput
   const form = q<HTMLFormElement>('#setup-form');
   const photoInput = q<HTMLInputElement>('#photo-input');
   const dropzone = q<HTMLElement>('#dropzone');
-  const list = q<HTMLOListElement>('#photo-list');
+  const grid = q<HTMLOListElement>('#photo-grid');
   const notice = q<HTMLElement>('#setup-notice');
+  const count = q<HTMLElement>('#photo-count');
+  const detail = q<HTMLElement>('#photo-detail');
+  const detailPreview = q<HTMLCanvasElement>('#detail-preview');
+  const detailIndex = q<HTMLElement>('#detail-index');
+  const detailCaption = q<HTMLInputElement>('#detail-caption');
+  const detailPortrait = q<HTMLButtonElement>('#detail-portrait');
+  const detailLeft = q<HTMLButtonElement>('#detail-left');
+  const detailRight = q<HTMLButtonElement>('#detail-right');
+  const detailRemove = q<HTMLButtonElement>('#detail-remove');
   const errors = q<HTMLElement>('#setup-errors');
   const generate = q<HTMLButtonElement>('#generate');
   const name = q<HTMLInputElement>('#name');
@@ -37,22 +63,111 @@ export function mountSetupForm(root: HTMLElement, onSubmit: (input: ProjectInput
   const keywords = q<HTMLTextAreaElement>('#keywords');
   const duration = q<HTMLSelectElement>('#duration');
   const resolution = q<HTMLSelectElement>('#resolution');
+  const musicStyle = q<HTMLSelectElement>('#music-style');
+  const musicUpload = q<HTMLElement>('#music-upload');
   const music = q<HTMLInputElement>('#music');
+  const musicLength = q<HTMLOptionElement>('#duration option[value="music"]');
 
   let entries: PhotoEntry[] = [];
   let portraitId: number | null = null;
+  let selectedId: number | null = null;
   let nextId = 1;
   let dragId: number | null = null;
   let touched = false;
+
+  const tileOf = (id: number) => grid.querySelector<HTMLLIElement>(`[data-id="${id}"]`);
+
+  const observer = new IntersectionObserver(
+    (records) => {
+      for (const record of records) {
+        if (!record.isIntersecting) continue;
+        observer.unobserve(record.target);
+        const entry = entries.find((e) => e.id === Number((record.target as HTMLElement).dataset.id));
+        if (entry) requestPreview(entry);
+      }
+    },
+    { rootMargin: '200px' },
+  );
+
+  function paint(entry: PhotoEntry): void {
+    const canvas = tileOf(entry.id)?.querySelector('canvas');
+    if (canvas && entry.preview) drawCover(canvas, entry.preview);
+    if (selectedId === entry.id && entry.preview) drawCover(detailPreview, entry.preview);
+  }
+
+  function requestPreview(entry: PhotoEntry): void {
+    if (entry.requested) return;
+    entry.requested = true;
+    previews.thumb(entry.file, PREVIEW_EDGE).then(
+      ({ bitmap }) => {
+        entry.preview = bitmap;
+        paint(entry);
+      },
+      (err: Error) => {
+        entry.requested = false;
+        const tile = tileOf(entry.id);
+        if (!tile) return;
+        if (err.message.includes('disposed')) observer.observe(tile);
+        else tile.classList.add('broken');
+      },
+    );
+  }
 
   function refresh(): void {
     const problems = validateSetup({ photoCount: entries.length, name: name.value });
     generate.disabled = problems.length > 0;
     errors.textContent = touched ? problems.join('；') : '';
+    count.textContent = `${entries.length} / ${MAX_PHOTOS} 張`;
+  }
+
+  function renderDetail(): void {
+    const index = entries.findIndex((e) => e.id === selectedId);
+    if (index < 0) {
+      detail.hidden = true;
+      return;
+    }
+    const entry = entries[index];
+    detail.hidden = false;
+    detailIndex.textContent = `No. ${String(index + 1).padStart(3, '0')}・${entry.file.name}`;
+    detailCaption.value = entry.caption;
+    detailLeft.disabled = index === 0;
+    detailRight.disabled = index === entries.length - 1;
+    const isPortrait = entry.id === portraitId;
+    detailPortrait.disabled = isPortrait;
+    detailPortrait.textContent = isPortrait ? '已是主視覺' : '設為主視覺';
+    detailPreview.getContext('2d')?.clearRect(0, 0, detailPreview.width, detailPreview.height);
+    if (entry.preview) drawCover(detailPreview, entry.preview);
+  }
+
+  function renderTile(entry: PhotoEntry, index: number): HTMLLIElement {
+    const canvas = el('canvas', { width: 120, height: 90 });
+    const tile = el('li', { className: 'photo-tile', draggable: true, title: entry.file.name }, canvas, el('span', { className: 'idx' }, String(index + 1).padStart(3, '0')));
+    tile.dataset.id = String(entry.id);
+    if (entry.id === portraitId) tile.append(el('span', { className: 'badge' }, '主視覺'));
+    if (entry.id === selectedId) tile.classList.add('selected');
+    tile.addEventListener('click', () => {
+      selectedId = entry.id;
+      render();
+    });
+    tile.addEventListener('dragstart', () => { dragId = entry.id; tile.classList.add('dragging'); });
+    tile.addEventListener('dragend', () => { dragId = null; tile.classList.remove('dragging'); });
+    tile.addEventListener('dragover', (ev) => { if (dragId !== null) ev.preventDefault(); });
+    tile.addEventListener('drop', (ev) => {
+      if (dragId === null) return;
+      ev.preventDefault();
+      move(entries.findIndex((e) => e.id === dragId), entries.findIndex((e) => e.id === entry.id));
+    });
+    return tile;
   }
 
   function render(): void {
-    list.replaceChildren(...entries.map(renderItem));
+    observer.disconnect();
+    grid.replaceChildren(...entries.map(renderTile));
+    for (const entry of entries) {
+      if (entry.preview) paint(entry);
+      else observer.observe(tileOf(entry.id)!);
+    }
+    renderDetail();
     refresh();
   }
 
@@ -64,10 +179,12 @@ export function mountSetupForm(root: HTMLElement, onSubmit: (input: ProjectInput
   }
 
   function remove(id: number): void {
-    const entry = entries.find((e) => e.id === id);
-    if (entry) URL.revokeObjectURL(entry.url);
-    entries = entries.filter((e) => e.id !== id);
+    const index = entries.findIndex((e) => e.id === id);
+    if (index < 0) return;
+    entries[index].preview?.close();
+    entries.splice(index, 1);
     if (portraitId === id) portraitId = entries[0]?.id ?? null;
+    selectedId = entries[Math.min(index, entries.length - 1)]?.id ?? null;
     render();
   }
 
@@ -75,7 +192,7 @@ export function mountSetupForm(root: HTMLElement, onSubmit: (input: ProjectInput
     touched = true;
     const images = files.filter(isImageFile);
     const { kept, dropped } = capPhotos(images, MAX_PHOTOS - entries.length);
-    for (const file of kept) entries.push({ id: nextId++, file, url: URL.createObjectURL(file), caption: '' });
+    for (const file of kept) entries.push({ id: nextId++, file, caption: '', preview: null, requested: false });
     if (portraitId === null && entries.length > 0) portraitId = entries[0].id;
     const messages: string[] = [];
     if (dropped > 0) messages.push(`最多 ${MAX_PHOTOS} 張照片，已略過 ${dropped} 張`);
@@ -84,37 +201,32 @@ export function mountSetupForm(root: HTMLElement, onSubmit: (input: ProjectInput
     render();
   }
 
-  function renderItem(entry: PhotoEntry, index: number): HTMLLIElement {
-    const caption = el('input', { className: 'caption', type: 'text', placeholder: '說明文字（選填）', maxLength: 80, value: entry.caption });
-    caption.addEventListener('input', () => { entry.caption = caption.value; });
-    const radio = el('input', { type: 'radio', name: 'portrait', checked: entry.id === portraitId });
-    radio.addEventListener('change', () => { portraitId = entry.id; });
-    const up = el('button', { type: 'button', className: 'move-up', textContent: '↑', title: '往前移', disabled: index === 0 });
-    up.addEventListener('click', () => move(index, index - 1));
-    const down = el('button', { type: 'button', className: 'move-down', textContent: '↓', title: '往後移', disabled: index === entries.length - 1 });
-    down.addEventListener('click', () => move(index, index + 1));
-    const del = el('button', { type: 'button', className: 'remove', textContent: '✕', title: '移除' });
-    del.addEventListener('click', () => remove(entry.id));
-
-    const li = el(
-      'li',
-      { className: 'photo-item', draggable: true },
-      el('img', { src: entry.url, alt: '' }),
-      el('span', { className: 'idx' }, `No. ${String(index + 1).padStart(2, '0')}`),
-      caption,
-      el('label', { className: 'portrait' }, radio, ' 主視覺'),
-      el('span', { className: 'tools' }, up, down, del),
-    );
-    li.addEventListener('dragstart', () => { dragId = entry.id; li.classList.add('dragging'); });
-    li.addEventListener('dragend', () => { dragId = null; li.classList.remove('dragging'); });
-    li.addEventListener('dragover', (ev) => { if (dragId !== null) ev.preventDefault(); });
-    li.addEventListener('drop', (ev) => {
-      if (dragId === null) return;
-      ev.preventDefault();
-      move(entries.findIndex((e) => e.id === dragId), index);
-    });
-    return li;
+  function syncMusicLength(): void {
+    const upload = musicStyle.value === 'upload';
+    musicUpload.hidden = !upload;
+    musicLength.disabled = !(upload && (music.files?.length ?? 0) > 0);
+    if (musicLength.disabled && duration.value === 'music') duration.value = 'auto';
   }
+
+  detailCaption.addEventListener('input', () => {
+    const entry = entries.find((e) => e.id === selectedId);
+    if (entry) entry.caption = detailCaption.value;
+  });
+  detailPortrait.addEventListener('click', () => {
+    portraitId = selectedId;
+    render();
+  });
+  detailLeft.addEventListener('click', () => {
+    const i = entries.findIndex((e) => e.id === selectedId);
+    move(i, i - 1);
+  });
+  detailRight.addEventListener('click', () => {
+    const i = entries.findIndex((e) => e.id === selectedId);
+    move(i, i + 1);
+  });
+  detailRemove.addEventListener('click', () => {
+    if (selectedId !== null) remove(selectedId);
+  });
 
   photoInput.addEventListener('change', () => {
     addFiles([...(photoInput.files ?? [])]);
@@ -133,12 +245,15 @@ export function mountSetupForm(root: HTMLElement, onSubmit: (input: ProjectInput
     touched = true;
     refresh();
   });
+  musicStyle.addEventListener('change', syncMusicLength);
+  music.addEventListener('change', syncMusicLength);
 
   form.addEventListener('submit', (ev) => {
     ev.preventDefault();
     touched = true;
     refresh();
     if (generate.disabled) return;
+    const style = parseMusicStyle(musicStyle.value);
     onSubmit({
       photos: entries.map((e) => e.file),
       captions: entries.map((e) => e.caption.trim()),
@@ -149,9 +264,11 @@ export function mountSetupForm(root: HTMLElement, onSubmit: (input: ProjectInput
       keywords: parseKeywords(keywords.value),
       durationMode: parseDuration(duration.value),
       resolution: resolution.value as Resolution,
-      music: music.files?.[0] ?? null,
+      musicStyle: style,
+      music: style === 'upload' ? music.files?.[0] ?? null : null,
     });
   });
 
+  syncMusicLength();
   refresh();
 }

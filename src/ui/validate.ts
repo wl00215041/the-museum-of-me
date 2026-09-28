@@ -1,7 +1,7 @@
-import type { DurationMode } from '../types';
+import type { LengthMode, MusicStyle } from '../types';
 
 export const MIN_PHOTOS = 3;
-export const MAX_PHOTOS = 60;
+export const MAX_PHOTOS = 500;
 export const MAX_KEYWORDS = 40;
 
 export function parseKeywords(raw: string): string[] {
@@ -29,11 +29,16 @@ export function validateSetup(state: { photoCount: number; name: string }): stri
   return problems;
 }
 
-export function parseDuration(value: string): DurationMode {
-  if (value === 'auto') return 'auto';
+export function parseDuration(value: string): LengthMode {
+  if (value === 'auto' || value === 'music') return value;
   const n = Number(value);
   if (n === 30 || n === 60 || n === 90 || n === 120) return n;
   throw new Error(`unknown duration option: ${value}`);
+}
+
+export function parseMusicStyle(value: string): MusicStyle {
+  if (value === 'airy' || value === 'calm' || value === 'upload') return value;
+  throw new Error(`unknown music style: ${value}`);
 }
 
 export function isImageFile(file: { type: string; name: string }): boolean {

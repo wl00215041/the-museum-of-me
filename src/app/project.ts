@@ -42,7 +42,7 @@ export async function buildProject(input: ProjectInput, onStatus: (message: stri
   const seed = hashString([input.name, ...input.keywords, String(photos.length)].join('|'));
 
   onStatus('布置展廳…');
-  const timeline = buildTimeline({ photoCount: photos.length, durationMode: input.durationMode, hasKeywords: input.keywords.length > 0 });
+  const timeline = buildTimeline({ photoCount: photos.length, durationMode: input.durationMode === 'music' ? 'auto' : input.durationMode, hasKeywords: input.keywords.length > 0 });
   const layout = computeLayout({ timeline, aspects: photos.map((p) => p.aspect), portraitIndex, keywords: input.keywords, seed });
   const tex = createCanvasTextureFactory();
   const date = formatDisplayDate(input.date);
@@ -61,7 +61,7 @@ export async function buildProject(input: ProjectInput, onStatus: (message: stri
   }).texture;
 
   onStatus('合成配樂…');
-  const soundtrack = await buildSoundtrack({ style: input.music ? 'upload' : 'calm', file: input.music }, timeline.total, seed);
+  const soundtrack = await buildSoundtrack({ style: input.musicStyle, file: input.music }, timeline.total, seed);
   if (soundtrack.warning) warnings.push(soundtrack.warning);
 
   return {

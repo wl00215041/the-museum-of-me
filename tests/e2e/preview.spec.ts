@@ -60,5 +60,5 @@ test('back returns to the form with its inputs intact', async ({ page }) => {
   await expect(page.locator('#setup')).toBeVisible();
   await expect(page.locator('#stage')).toBeHidden();
   await expect(page.locator('#name')).toHaveValue('小明');
-  await expect(page.locator('.photo-item')).toHaveCount(5);
+  await expect(page.locator('.photo-tile')).toHaveCount(5);
 });

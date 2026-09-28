@@ -41,8 +41,9 @@ export interface ProjectInput {
   subtitle: string;
   date: string;
   keywords: string[];
-  durationMode: DurationMode;
+  durationMode: LengthMode;
   resolution: Resolution;
+  musicStyle: MusicStyle;
   music: File | null;
 }
 

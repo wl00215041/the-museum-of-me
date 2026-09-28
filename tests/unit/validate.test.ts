@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capPhotos, isImageFile, parseDuration, parseKeywords, validateSetup } from '../../src/ui/validate';
+import { MAX_PHOTOS, capPhotos, isImageFile, parseDuration, parseKeywords, parseMusicStyle, validateSetup } from '../../src/ui/validate';
 
 describe('parseKeywords', () => {
   it('splits on half- and full-width separators, trims and removes duplicates', () => {
@@ -31,10 +31,26 @@ describe('validateSetup', () => {
 });
 
 describe('parseDuration', () => {
-  it('maps select values to duration modes', () => {
+  it('maps select values to length modes', () => {
     expect(parseDuration('auto')).toBe('auto');
     expect(parseDuration('90')).toBe(90);
+    expect(parseDuration('music')).toBe('music');
     expect(() => parseDuration('45')).toThrow();
+  });
+});
+
+describe('parseMusicStyle', () => {
+  it('accepts the three styles only', () => {
+    expect(parseMusicStyle('airy')).toBe('airy');
+    expect(parseMusicStyle('calm')).toBe('calm');
+    expect(parseMusicStyle('upload')).toBe('upload');
+    expect(() => parseMusicStyle('nijiko')).toThrow();
+  });
+});
+
+describe('limits', () => {
+  it('allows up to 500 photos', () => {
+    expect(MAX_PHOTOS).toBe(500);
   });
 });
 

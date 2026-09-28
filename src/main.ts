@@ -1,5 +1,6 @@
 import './ui/styles.css';
 import { buildProject, type Project } from './app/project';
+import { createPhotoPool } from './assets/photo-pool';
 import { exportVideo, type ExportProgress } from './export/exporter';
 import { exportFilename } from './export/filename';
 import { createPlayer, type Player } from './preview/player';
@@ -38,6 +39,7 @@ interface Session {
   player: Player;
 }
 
+const pool = createPhotoPool();
 let session: Session | null = null;
 let exporting: AbortController | null = null;
 
@@ -144,7 +146,7 @@ async function runExport(s: Session): Promise<void> {
   }
 }
 
-mountSetupForm(setup, async (input) => {
+mountSetupForm(setup, pool, async (input) => {
   showBusy('正在布置展廳…');
   setupErrors.textContent = '';
   try {
