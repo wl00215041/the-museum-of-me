@@ -65,10 +65,11 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
       const i = r * cols + c;
       const photo = assignment[i];
       const pc = lib.colors[photo];
-      const propped = scatter() < 0.08;
-      const angle = propped ? lerp(0.3, 0.6, scatter()) * (scatter() < 0.5 ? -1 : 1) : (scatter() - 0.5) * 0.1;
+      // A few whole photos float up level above the rest (original 147–159 s).
+      const floating = scatter() < 0.08;
+      const angle = (scatter() - 0.5) * (floating ? 0.06 : 0.1);
       const aroundX = scatter() < 0.5;
-      const lie = { dy: propped ? Math.abs(Math.sin(angle)) * (tile / 2) : scatter() * 0.025, ax: aroundX ? angle : 0, az: aroundX ? 0 : angle };
+      const lie = { dy: floating ? lerp(0.06, 0.25, scatter()) : scatter() * 0.025, ax: aroundX ? angle : 0, az: aroundX ? 0 : angle };
       const base: [number, number] = [(c - (cols - 1) / 2) * pitch, (r - (rows - 1) / 2) * pitch];
       items.push({
         photoIndex: photo,
@@ -225,7 +226,8 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
     const lift = smoothstep(0, 0.4, mu);
     carpet.position.lerpVectors(carpetFrom, carpetTo, lift);
     // Starts in line with the platform, then untwists as it lifts (original 160–175 s).
-    carpet.rotation.set(-0.35 * lift, fin.carpetYaw * (1 - lift) + 0.25 * lift + 0.12 * mu, 0);
+    // Turns about 15° while it lifts, always the same way round (original 160–175 s: 1–2°/s).
+    carpet.rotation.set(-0.35 * lift, fin.carpetYaw - 0.26 * smoothstep(0, 1, mu), 0);
     const lie = 1 - smoothstep(0, 0.35, mu);
     if (lie !== lastLie) {
       lastLie = lie;
@@ -279,7 +281,7 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
       (starEdges.material as LineBasicMaterial).opacity = 0.35 * late;
       (stars.material as PointsMaterial).opacity = late;
       (highlights.material as PointsMaterial).opacity = late;
-      networkGroup.rotation.y = 0.06 * (t - network.start);
+      networkGroup.rotation.y = -0.03 * (t - network.start);
     }
 
     cardGroup.visible = t >= ending.start;

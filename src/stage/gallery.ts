@@ -379,13 +379,15 @@ export function computeGallery(input: GalleryInput): Gallery {
   const platformCenter: Vec3 = [px, P.height / 2, pz];
   // The last arm stands left of the dive so the camera brushes past it (original 152 s).
   // The dive runs in its own frame, centred on the platform and facing the camera where the orbit ends.
-  const diveFrame = child(F2, [px, 0, pz], -TRACK.robots.orbit);
+  // Centred on the platform and aligned with it: the dive swings back from the orbit onto the platform's axis.
+  const diveFrame = child(F2, [px, 0, pz], 0);
+  const swing = (x: number, z: number, a: number): [number, number] => [x * Math.cos(a) + z * Math.sin(a), -x * Math.sin(a) + z * Math.cos(a)];
   const inRobots = (dx: number, dz: number): [number, number] => {
     const p = toLocal(F2, toWorld(diveFrame, [dx, 0, dz]));
     return [p[0] - px, p[2] - pz];
   };
   // Four arms around the platform; the last stands left of the dive so the camera brushes past it (original 152 s).
-  const armSpots: [number, number, number][] = [[-6.2, 0.6, 0], [6.2, 0.2, 1.7], [-3.6, -4.2, 3.1], [3.6, -4.0, 4.6], [...inRobots(-3.4, 4.8), 2.3]];
+  const armSpots: [number, number, number][] = [[-6.2, 0.6, 0], [6.2, 0.2, 1.7], [-3.6, -4.2, 3.1], [3.6, -4.0, 4.6], [...inRobots(...swing(-4.0, 4.6, 0.5 * TRACK.robots.orbit)), 2.3]];
   const arms = armSpots.map(([dx, dz, phase]) => ({ pos: [px + dx, 0, pz + dz] as Vec3, yaw: Math.atan2(-dx, -dz), phase }));
   for (const arm of arms) {
     const k = ROBOTS.armScale;
@@ -458,7 +460,7 @@ export function computeGallery(input: GalleryInput): Gallery {
     words: wordsRoom,
     hall,
     robots: { frame: F2, platform: { center: platformCenter, width: P.width, depth: P.depth, height: P.height }, arms, floaters },
-    finale: { frame: diveFrame, carpet, lifted: [0, ROBOTS.liftY, 0], network: networkLayout(n, portraitIndex, rnd), card: [0, -200, 0], carpetYaw: -TRACK.robots.orbit },
+    finale: { frame: diveFrame, carpet, lifted: [0, ROBOTS.liftY, 0], network: networkLayout(n, portraitIndex, rnd), card: [0, -200, 0], carpetYaw: 0 },
     featured,
     portraitIndex,
   };

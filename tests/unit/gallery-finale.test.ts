@@ -113,7 +113,7 @@ describe('finale', () => {
     for (const l of lines) expect((l.material as LineBasicMaterial).depthWrite).toBe(false);
   });
 
-  it('lays the carpet photos unevenly, some propped up, and settles them flat and square as it lifts', () => {
+  it('lays the carpet photos unevenly, some floating up flat, and settles them as it lifts', () => {
     const ctx = fakeGalleryContext(20);
     const finale = buildFinale(ctx);
     const dive = requireSegment(ctx.sequence, 'dive');
@@ -124,26 +124,45 @@ describe('finale', () => {
     const p = new Vector3();
     const q = new Quaternion();
     const s = new Vector3();
-    const tilts = () => Array.from({ length: tiles.count }, (_, i) => {
+    const lie = () => Array.from({ length: tiles.count }, (_, i) => {
       tiles.getMatrixAt(i, m);
       m.decompose(p, q, s);
       return { tilt: 2 * Math.acos(Math.min(1, Math.abs(q.w))), y: p.y };
     });
     finale.update!(dive.start);
-    const before = tilts();
-    const propped = before.filter((x) => x.tilt > 0.25).length / before.length;
-    expect(propped).toBeGreaterThan(0.04);
-    expect(propped).toBeLessThan(0.15);
-    const ys = before.map((x) => x.y);
-    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(0.02);
+    const before = lie();
+    const floating = before.filter((x) => x.y > 0.05).length / before.length;
+    expect(floating).toBeGreaterThan(0.04);
+    expect(floating).toBeLessThan(0.15);
+    // Whole photos float up level, none is propped up at an angle.
+    for (const x of before) expect(x.tilt).toBeLessThan(0.1);
     expect(carpet.rotation.y).toBeCloseTo(ctx.gallery.finale.carpetYaw, 9);
     finale.update!(mosaic.start + 0.5 * (mosaic.end - mosaic.start));
-    for (const x of tilts()) {
+    for (const x of lie()) {
       expect(x.tilt).toBeLessThan(1e-6);
       expect(x.y).toBeCloseTo(0, 9);
     }
     finale.update!(dive.start);
-    expect(tilts()).toEqual(before);
+    expect(lie()).toEqual(before);
+  });
+
+  it('turns the carpet gently while it lifts (original: about 1.5°/s)', () => {
+    const ctx = fakeGalleryContext(20);
+    const finale = buildFinale(ctx);
+    const mosaic = requireSegment(ctx.sequence, 'mosaic');
+    const [carpet] = named(finale.group, 'carpet');
+    const dt = 1 / 30;
+    let previous: number | null = null;
+    for (let t = mosaic.start; t <= mosaic.end; t += dt) {
+      finale.update!(t);
+      if (previous !== null) {
+        expect((Math.abs(carpet.rotation.y - previous) * 180) / Math.PI / dt, `t=${t.toFixed(2)}`).toBeLessThan(4);
+        // Always the same way round, as in the original.
+        expect(carpet.rotation.y).toBeLessThanOrEqual(previous + 1e-12);
+      }
+      previous = carpet.rotation.y;
+    }
+    expect(Math.abs(carpet.rotation.y) * (180 / Math.PI)).toBeGreaterThan(8);
   });
 
   it('shows the network photos as flat round discs facing the camera, not spheres', () => {

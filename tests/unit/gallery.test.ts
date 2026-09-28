@@ -171,7 +171,7 @@ describe('computeGallery', () => {
     expect(names(make(20, 30).gallery)).toEqual(['Photos 1']);
   });
 
-  it('puts the finale in a dive frame centred on the platform, facing the camera where the orbit ends', () => {
+  it('puts the finale in a frame centred on the platform and aligned with it', () => {
     for (const c of CUTS) {
       const { sequence, gallery } = make(20, c.mode, c.music);
       const { frame } = gallery.finale;
@@ -181,12 +181,12 @@ describe('computeGallery', () => {
       expect(gallery.robots.platform.center[2]).toBeCloseTo(gallery.track.anchors.platformZ, 12);
       expect(gallery.finale.carpet[0]).toBe(0);
       expect(gallery.finale.carpet[2]).toBe(0);
-      expect(gallery.finale.carpetYaw).toBeCloseTo(-TRACK.robots.orbit, 12);
+      expect(gallery.finale.carpetYaw).toBe(0);
       const dive = requireSegment(sequence, 'dive');
       const cam = toLocal(frame, gallery.track.pos.at(dive.start));
-      expect(Math.abs(cam[0]), `${c.mode}/${c.music}`).toBeLessThan(0.5);
-      expect(cam[2]).toBeGreaterThan(5);
-      expect(cam[2]).toBeLessThan(11);
+      // The orbit ends 30° round the platform; the dive then swings back onto the platform's axis.
+      expect(Math.atan2(cam[0], cam[2]), `${c.mode}/${c.music}`).toBeCloseTo(TRACK.robots.orbit, 1);
+      expect(Math.hypot(cam[0], cam[2])).toBeCloseTo(TRACK.robots.dEnd, 0);
     }
   });
 

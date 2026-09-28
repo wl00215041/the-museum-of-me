@@ -86,6 +86,7 @@ export function createWorldRenderer(o: WorldRendererOptions): MuseumRenderer {
       camera.updateProjectionMatrix();
     }
     camera.position.set(...pose.pos);
+    camera.up.set(...(pose.up ?? [0, 1, 0]));
     camera.lookAt(...pose.target);
     dof.cocMaterial.focusDistance = pose.focus;
     dof.bokehScale = dofScaleAt(o.sequence, t);

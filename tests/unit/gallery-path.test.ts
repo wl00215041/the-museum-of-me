@@ -1,3 +1,4 @@
+import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildGalleryPath } from '../../src/camera/gallery-path';
 import { TRACK } from '../../src/camera/track';
@@ -75,6 +76,40 @@ describe('buildGalleryPath', () => {
       expect(v[1] / length(v), `${c.mode}/${c.music} top-down`).toBeLessThan(-0.95);
       const above = toLocal(F, end.pos);
       expect(Math.hypot(above[0], above[2])).toBeLessThan(1);
+      // Looking down along the platform's axis: the carpet sits square in the picture.
+      const up = toLocalDir(F, end.up!);
+      expect(Math.abs(up[0]), `${c.mode}/${c.music} up`).toBeLessThan(0.05);
+      expect(up[2]).toBeLessThan(-0.9);
+    }
+  });
+
+  it('never whips the picture around: it rolls at most 6°/s (at the original pace) from the dive to the card', () => {
+    for (const c of [{ mode: 'auto' as const, music: null }, { mode: 60 as const, music: null }, { mode: 'music' as const, music: 300 }]) {
+      const { sequence, path } = make(c.mode, c.music);
+      const dive = requireSegment(sequence, 'dive');
+      const ending = requireSegment(sequence, 'ending');
+      const bound = 6 * (12 / (dive.end - dive.start));
+      const cam = new PerspectiveCamera();
+      const orient = (t: number) => {
+        const p = path.poseAt(t);
+        cam.up.set(...(p.up ?? [0, 1, 0]));
+        cam.position.set(...p.pos);
+        cam.lookAt(...p.target);
+        return cam.quaternion.clone();
+      };
+      const dt = 1 / 30;
+      for (let t = dive.start - 1; t + dt < ending.start; t += dt) {
+        const a = orient(t);
+        const b = orient(t + dt);
+        const delta = b.clone().multiply(a.clone().invert());
+        const w = Math.min(1, Math.abs(delta.w));
+        const angle = 2 * Math.acos(w);
+        const axis = new Vector3(delta.x, delta.y, delta.z).normalize().multiplyScalar(Math.sign(delta.w) || 1);
+        const view = new Vector3(0, 0, -1).applyQuaternion(b);
+        const roll = (angle * axis.dot(view) * 180) / Math.PI / dt;
+        expect(Math.abs(roll), `${c.mode}/${c.music} t=${t.toFixed(2)}`).toBeLessThan(bound);
+      }
+      expect(new Quaternion()).toBeTruthy();
     }
   });
 
@@ -99,7 +134,7 @@ describe('buildGalleryPath', () => {
     for (let t = network.start + 0.4 * n; t < network.end; t += 0.25) {
       const rel = sub(toLocal(F, path.poseAt(t).pos), C);
       // Undo the network group's slow spin.
-      const a = -0.06 * (t - network.start);
+      const a = 0.03 * (t - network.start);
       const x = rel[0] * Math.cos(a) + rel[2] * Math.sin(a);
       const z = -rel[0] * Math.sin(a) + rel[2] * Math.cos(a);
       let nearest = Infinity;
