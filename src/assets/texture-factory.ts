@@ -1,11 +1,14 @@
 import type { Texture } from 'three';
 
+export type FontFamily = 'sans' | 'serif' | 'grotesk';
+
 export interface TextLine {
   text: string;
   px: number;
-  weight?: 300 | 400 | 500 | 700;
+  weight?: 300 | 400 | 500 | 700 | 800;
   spacing?: number;
   color?: string;
+  family?: FontFamily;
 }
 
 export interface TextSpec {
@@ -29,4 +32,13 @@ export interface TextTexture {
 export interface TextureFactory {
   text(spec: TextSpec): TextTexture;
   glow(): Texture;
+}
+
+export type ImageLike = CanvasImageSource & { width: number; height: number };
+
+export interface StageTextureFactory extends TextureFactory {
+  /** A tall light-box face: the photo, darkened, with coordinate-style captions at the top. */
+  lightbox(image: ImageLike, lines: string[]): Texture;
+  /** SMPTE-style colour bars for the monitor wall. */
+  colorBars(): Texture;
 }

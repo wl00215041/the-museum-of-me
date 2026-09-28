@@ -55,3 +55,18 @@ describe('format', () => {
     expect(truncate('😀😀😀', 2)).toBe('😀…');
   });
 });
+import { exhibitionDate, formatExhibitionStamp } from '../../src/util/format';
+
+describe('exhibition stamp', () => {
+  it('matches the original English format', () => {
+    expect(formatExhibitionStamp(new Date(2011, 10, 28, 8, 6, 55))).toBe('08:06:55 AM Monday November 28, 2011');
+    expect(formatExhibitionStamp(new Date(2011, 5, 4, 17, 4, 15))).toBe('05:04:15 PM Saturday June 4, 2011');
+    expect(formatExhibitionStamp(new Date(2026, 0, 1, 0, 0, 0))).toBe('12:00:00 AM Thursday January 1, 2026');
+  });
+
+  it('uses the chosen date with the current time, or now when no date is set', () => {
+    const now = new Date(2026, 8, 28, 15, 30, 5);
+    expect(exhibitionDate('2011-11-28', now)).toEqual(new Date(2011, 10, 28, 15, 30, 5));
+    expect(exhibitionDate('', now)).toEqual(now);
+  });
+});
