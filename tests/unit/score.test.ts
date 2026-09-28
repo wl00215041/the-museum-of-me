@@ -31,3 +31,22 @@ describe('composeScore', () => {
     expect(composeScore(2, 1)).toEqual([]);
   });
 });
+
+import { composeAiryScore } from '../../src/audio/score';
+
+describe('composeAiryScore', () => {
+  it('is deterministic, stays inside the window and rings bells over piano and pads', () => {
+    const notes = composeAiryScore(80, 3);
+    expect(notes).toEqual(composeAiryScore(80, 3));
+    expect(new Set(notes.map((n) => n.voice))).toEqual(new Set(['piano', 'pad', 'bell']));
+    for (const n of notes) {
+      expect(n.time).toBeGreaterThanOrEqual(0);
+      expect(n.time).toBeLessThan(80 - TAIL);
+    }
+    for (let i = 1; i < notes.length; i++) expect(notes[i].time).toBeGreaterThanOrEqual(notes[i - 1].time);
+  });
+
+  it('is sparser than the calm score', () => {
+    expect(composeAiryScore(120, 1).length).toBeLessThan(composeScore(120, 1).length);
+  });
+});

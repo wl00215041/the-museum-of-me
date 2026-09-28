@@ -1,5 +1,6 @@
+import type { MusicStyle } from '../types';
 import { mulberry32 } from '../util/rng';
-import { TAIL, composeScore, type NoteEvent } from './score';
+import { TAIL, composeAiryScore, composeScore, type NoteEvent } from './score';
 
 export const SAMPLE_RATE = 48000;
 const FADE_IN = 0.5;
@@ -17,27 +18,29 @@ function impulseResponse(ctx: BaseAudioContext, seconds: number, seed: number): 
   return buffer;
 }
 
-function playPiano(ctx: BaseAudioContext, out: AudioNode, ev: NoteEvent): void {
+function playPartials(ctx: BaseAudioContext, out: AudioNode, ev: NoteEvent, partials: readonly (readonly [number, number])[], decay: number, gain: number): void {
   const f = midiToHz(ev.midi);
-  const decay = 1.2 + (96 - ev.midi) / 40;
   const stopAt = ev.time + ev.duration + decay;
   const env = ctx.createGain();
   env.gain.setValueAtTime(0, ev.time);
-  env.gain.linearRampToValueAtTime(ev.velocity, ev.time + 0.008);
+  env.gain.linearRampToValueAtTime(ev.velocity, ev.time + 0.006);
   env.gain.exponentialRampToValueAtTime(0.0008, stopAt);
   env.connect(out);
-  for (const [harmonic, amp] of [[1, 1], [2, 0.45], [3, 0.18], [4, 0.08]] as const) {
+  partials.forEach(([ratio, amp], i) => {
     const osc = ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.value = f * harmonic;
-    osc.detune.value = harmonic * 0.7;
+    osc.frequency.value = f * ratio;
+    osc.detune.value = (i + 1) * 0.7;
     const g = ctx.createGain();
-    g.gain.value = amp * 0.35;
+    g.gain.value = amp * gain;
     osc.connect(g).connect(env);
     osc.start(ev.time);
     osc.stop(stopAt + 0.05);
-  }
+  });
 }
+
+const PIANO = [[1, 1], [2, 0.45], [3, 0.18], [4, 0.08]] as const;
+const BELL = [[1, 1], [2.76, 0.35], [5.4, 0.12]] as const;
 
 function playPad(ctx: BaseAudioContext, out: AudioNode, ev: NoteEvent): void {
   const filter = ctx.createBiquadFilter();
@@ -77,27 +80,37 @@ function masterChain(ctx: BaseAudioContext, duration: number, level: number): Ga
   return master;
 }
 
-export async function synthesizeSoundtrack(duration: number, seed: number): Promise<AudioBuffer> {
+export async function synthesizeSoundtrack(duration: number, seed: number, style: 'calm' | 'airy' = 'calm'): Promise<AudioBuffer> {
+  const airy = style === 'airy';
   const ctx = new OfflineAudioContext(2, Math.ceil(duration * SAMPLE_RATE), SAMPLE_RATE);
   const master = masterChain(ctx, duration, 0.8);
   const bus = ctx.createGain();
   const dry = ctx.createGain();
-  dry.gain.value = 0.8;
+  dry.gain.value = airy ? 0.65 : 0.8;
   const reverb = ctx.createConvolver();
-  reverb.buffer = impulseResponse(ctx, 3.2, seed);
+  reverb.buffer = impulseResponse(ctx, airy ? 4.5 : 3.2, seed);
   const wet = ctx.createGain();
-  wet.gain.value = 0.35;
+  wet.gain.value = airy ? 0.5 : 0.35;
   bus.connect(dry).connect(master);
   bus.connect(reverb).connect(wet).connect(master);
-  for (const ev of composeScore(duration, seed)) {
-    if (ev.voice === 'piano') playPiano(ctx, bus, ev);
-    else playPad(ctx, bus, ev);
+  for (const ev of airy ? composeAiryScore(duration, seed) : composeScore(duration, seed)) {
+    if (ev.voice === 'pad') playPad(ctx, bus, ev);
+    else if (ev.voice === 'bell') playPartials(ctx, bus, ev, BELL, 2.5, 0.3);
+    else playPartials(ctx, bus, ev, PIANO, 1.2 + (96 - ev.midi) / 40, 0.35);
   }
   return ctx.startRendering();
 }
 
+async function decode(file: File): Promise<AudioBuffer> {
+  return new OfflineAudioContext(2, 1, SAMPLE_RATE).decodeAudioData(await file.arrayBuffer());
+}
+
+export async function probeAudioDuration(file: File): Promise<number> {
+  return (await decode(file)).duration;
+}
+
 export async function fitUploadedAudio(file: File, duration: number): Promise<AudioBuffer> {
-  const decoded = await new OfflineAudioContext(2, 1, SAMPLE_RATE).decodeAudioData(await file.arrayBuffer());
+  const decoded = await decode(file);
   const ctx = new OfflineAudioContext(2, Math.ceil(duration * SAMPLE_RATE), SAMPLE_RATE);
   const source = ctx.createBufferSource();
   source.buffer = decoded;
@@ -108,16 +121,15 @@ export async function fitUploadedAudio(file: File, duration: number): Promise<Au
 }
 
 export async function buildSoundtrack(
-  music: File | null,
+  music: { style: MusicStyle; file: File | null },
   duration: number,
   seed: number,
 ): Promise<{ buffer: AudioBuffer; warning: string | null }> {
-  if (music) {
-    try {
-      return { buffer: await fitUploadedAudio(music, duration), warning: null };
-    } catch {
-      return { buffer: await synthesizeSoundtrack(duration, seed), warning: `無法讀取音樂檔「${music.name}」，已改用內建配樂` };
-    }
+  if (music.style !== 'upload') return { buffer: await synthesizeSoundtrack(duration, seed, music.style), warning: null };
+  if (!music.file) return { buffer: await synthesizeSoundtrack(duration, seed, 'airy'), warning: '未選擇音樂檔，已改用內建配樂' };
+  try {
+    return { buffer: await fitUploadedAudio(music.file, duration), warning: null };
+  } catch {
+    return { buffer: await synthesizeSoundtrack(duration, seed, 'airy'), warning: `無法讀取音樂檔「${music.file.name}」，已改用內建配樂` };
   }
-  return { buffer: await synthesizeSoundtrack(duration, seed), warning: null };
 }

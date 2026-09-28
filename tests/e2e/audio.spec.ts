@@ -61,13 +61,36 @@ test('uploaded music longer than the video is trimmed and fades out', async ({ p
   expect(r.last).toBeLessThan(r.early * 0.2);
 });
 
-test('undecodable music falls back to the synthesized soundtrack with a warning', async ({ page }) => {
+test('undecodable music falls back to the airy soundtrack with a warning', async ({ page }) => {
   const r = await page.evaluate(async () => {
     const m = (window as AnyWindow).__soundtrack;
     const bad = new File(['definitely not audio'], 'song.mp3', { type: 'audio/mpeg' });
-    const { buffer, warning } = await m.buildSoundtrack(bad, 10, 1);
+    const { buffer, warning } = await m.buildSoundtrack({ style: 'upload', file: bad }, 10, 1);
     return { duration: buffer.duration, warning };
   });
   expect(r.duration).toBeCloseTo(10, 2);
   expect(r.warning).toContain('內建配樂');
+});
+
+test('the airy style renders an audible soundtrack of the requested length', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const m = (window as AnyWindow).__soundtrack;
+    const { buffer, warning } = await m.buildSoundtrack({ style: 'airy', file: null }, 16, 4);
+    const ch = buffer.getChannelData(1);
+    let peak = 0;
+    for (let i = 0; i < ch.length; i++) peak = Math.max(peak, Math.abs(ch[i]));
+    return { duration: buffer.duration, warning, peak };
+  });
+  expect(r.duration).toBeCloseTo(16, 2);
+  expect(r.warning).toBeNull();
+  expect(r.peak).toBeGreaterThan(0.05);
+});
+
+test('probeAudioDuration reads the length of uploaded music', async ({ page }) => {
+  const seconds = await page.evaluate(async (data) => {
+    const m = (window as AnyWindow).__soundtrack;
+    const file = new File([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], 'tone.wav', { type: 'audio/wav' });
+    return m.probeAudioDuration(file);
+  }, b64('tone-5s.wav'));
+  expect(seconds).toBeCloseTo(5, 1);
 });

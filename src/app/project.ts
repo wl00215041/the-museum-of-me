@@ -61,7 +61,7 @@ export async function buildProject(input: ProjectInput, onStatus: (message: stri
   }).texture;
 
   onStatus('合成配樂…');
-  const soundtrack = await buildSoundtrack(input.music, timeline.total, seed);
+  const soundtrack = await buildSoundtrack({ style: input.music ? 'upload' : 'calm', file: input.music }, timeline.total, seed);
   if (soundtrack.warning) warnings.push(soundtrack.warning);
 
   return {
