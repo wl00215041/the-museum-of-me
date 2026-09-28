@@ -46,3 +46,23 @@ export interface Storyboard {
   total: number;
   shots: ShotSpan[];
 }
+
+export type SegmentId =
+  | 'title' | 'exhibition' | 'intro' | 'portraits' | 'photos' | 'moments' | 'words'
+  | 'likes' | 'videos' | 'robots' | 'dive' | 'mosaic' | 'network' | 'ending';
+
+export const SEGMENT_ORDER: readonly SegmentId[] = [
+  'title', 'exhibition', 'intro', 'portraits', 'photos', 'moments', 'words',
+  'likes', 'videos', 'robots', 'dive', 'mosaic', 'network', 'ending',
+];
+
+export interface Segment {
+  id: SegmentId;
+  start: number;
+  end: number;
+}
+
+export interface Sequence {
+  total: number;
+  segments: Segment[];
+}
