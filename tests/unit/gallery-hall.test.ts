@@ -1,4 +1,4 @@
-import { Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
+import { Box3, Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 import { findSegment, requireSegment } from '../../src/plan/sequence';
 import { toWorld } from '../../src/stage/frame';
@@ -16,9 +16,24 @@ describe('hall', () => {
   const room = buildHallRoom(ctx)!;
   const hall = ctx.gallery.hall!;
 
-  it('stands the thumb on its pedestal at the thumb anchor', () => {
+  it('stands the thumb on its low pedestal at the thumb anchor', () => {
     const [thumb] = named(room.group, 'thumb');
-    worldPos(thumb).forEach((v, i) => expect(v).toBeCloseTo(toWorld(hall.thumb, [0, 0.55, 0])[i], 9));
+    worldPos(thumb).forEach((v, i) => expect(v).toBeCloseTo(toWorld(hall.thumb, [0, HALL.pedestal.height, 0])[i], 9));
+  });
+
+  it('shows the whole thumb inside the 2.35:1 frame while the orbit starts (original 95–101 s)', () => {
+    const likes = requireSegment(ctx.sequence, 'likes');
+    const halfTan = (Math.tan((19 * Math.PI) / 180) * (16 / 9)) / 2.35;
+    room.group.updateMatrixWorld(true);
+    const [thumb] = named(room.group, 'thumb');
+    const top = new Box3().setFromObject(thumb).max.y;
+    for (let t = likes.start + 0.1 * (likes.end - likes.start); t < likes.start + 0.6 * (likes.end - likes.start); t += 0.25) {
+      const p = ctx.gallery.track.pos.at(t);
+      const q = ctx.gallery.track.target.at(t);
+      const d = Math.hypot(q[0] - p[0], q[2] - p[2]);
+      const ahead = ((hall.thumb.origin[0] - p[0]) * (q[0] - p[0]) + (hall.thumb.origin[2] - p[2]) * (q[2] - p[2])) / d;
+      expect((top - p[1]) / ahead, `t=${t.toFixed(2)}`).toBeLessThan(0.92 * halfTan);
+    }
   });
 
   it('lines the Likes wall with old TVs on stands, the colour-bar ones sharing one material', () => {

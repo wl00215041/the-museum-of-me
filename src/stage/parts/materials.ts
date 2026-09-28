@@ -47,7 +47,7 @@ export function createStageMaterials(): StageMaterials {
     platform: std(0xdcdad4, 0.8),
     lightboxFrame: std(0x151515, 0.6),
     monitorBody: std(0x101010, 0.5),
-    pedestal: std(0x2a2a2a, 0.7),
+    pedestal: std(0x161616, 0.85),
     pillarDark: std(0x1a1a1a, 0.9),
     pillarLight: std(0xc4c3bf, 0.9),
     crtBody: std(0x2b2926, 0.55),

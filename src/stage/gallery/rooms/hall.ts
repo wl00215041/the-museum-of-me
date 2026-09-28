@@ -38,14 +38,13 @@ export function buildHallRoom(ctx: GalleryContext): RoomObject | null {
   group.name = 'room:hall';
 
   const thumbHolder = placeIn(h.thumb, new Group());
-  const pedestal = new Mesh(new CylinderGeometry(1.7, 1.8, 0.55, 48), mats.pedestal);
-  pedestal.position.y = 0.275;
+  const P = HALL.pedestal;
+  const pedestal = new Mesh(new CylinderGeometry(P.radius, P.radius + 0.08, P.height, 64), mats.pedestal);
+  pedestal.position.y = P.height / 2;
   const thumb = createThumbSculpture(mats.sculpture, 7);
-  thumb.position.y = 0.55;
-  // The original's hand is as wide as it is tall (original 95–100 s).
-  thumb.scale.set(2.0, 1.1, 1.6);
+  thumb.position.y = P.height;
   // Lit from the upper left, as in the original.
-  const spot = new SpotLight(0xffffff, 160, 24, 0.5, 0.6, 1.5);
+  const spot = new SpotLight(0xffffff, 100, 24, 0.5, 0.6, 1.5);
   spot.position.set(-2.5, 9, 3);
   spot.target.position.set(0, 1.5, 0);
   thumbHolder.add(pedestal, thumb, spot, spot.target);

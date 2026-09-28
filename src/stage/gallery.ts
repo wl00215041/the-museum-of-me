@@ -18,6 +18,8 @@ export const LABEL_Y = 1.75;
 export const CARPET = { cols: 64, rows: 36, pitch: 0.15, tile: 0.14 } as const;
 export const ROBOTS = { platform: { width: 10, depth: 6, height: 0.35 }, back: 8, halfWidth: 16, front: 6, liftY: 3, floaters: 200, armScale: 1.4 } as const;
 export const HALL = {
+  /** Low, wide dark disc under the like sculpture (original 95 s). */
+  pedestal: { radius: 2.3, height: 0.22 },
   crt: { count: 7, from: -3.5, pitch: 1.1, y: 1.35, z: 1.6, width: 0.6, height: 0.45 },
   /** The photo grid hangs on the grid wall's west part, next to the Videos corner. */
   grid: { cols: 6, rows: 5, pitchX: 1.1, pitchY: 0.8, width: 1.0, height: 0.72, bottom: 1.0, step: 1.6, offset: -2.4 },
@@ -308,7 +310,8 @@ export function computeGallery(input: GalleryInput): Gallery {
     const no = ++section;
     const H = TRACK.hall;
     const thumb: Frame = { origin: Hh.thumb, yaw: Hh.turnYaw };
-    obstacles.push({ name: 'sculpture', frame: thumb, min: [-1.9, 0, -1.9], max: [1.9, 4, 1.9], region: 'walk' });
+    const pr = HALL.pedestal.radius + 0.1;
+    obstacles.push({ name: 'sculpture', frame: thumb, min: [-pr, 0, -pr], max: [pr, 3.2, pr], region: 'walk' });
     walls.push({ name: 'likes-wall', frame: Hh.likesWall, center: [0, WALL_HEIGHT.dark / 2], width: H.likesLength, height: WALL_HEIGHT.dark, dark: true, region: 'walk' });
     walls.push({ name: 'grid-wall', frame: Hh.gridWall, center: [0, WALL_HEIGHT.dark / 2], width: H.gridLength, height: WALL_HEIGHT.dark, dark: true, region: 'walk' });
     walls.push({ name: 'videos-wall', frame: Hh.videosWall, center: [0, WALL_HEIGHT.dark / 2], width: 2 * H.videosHalfWidth, height: WALL_HEIGHT.dark, dark: true, region: 'walk' });
