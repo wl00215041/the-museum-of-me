@@ -1,10 +1,11 @@
 import { TRACK, computeTrack, whiteWalk, type Track, type WhiteWalk } from '../camera/track';
 import { findSegment, requireSegment } from '../plan/sequence';
-import type { Segment, Sequence, Vec3 } from '../types';
+import { resolveScenes } from '../plan/scenes';
+import type { Scenes, Segment, Sequence, Vec3 } from '../types';
 import { clamp, lerp } from '../util/math';
 import { mulberry32 } from '../util/rng';
 import { IDENTITY, child, toLocal, toWorld, type Frame } from './frame';
-import { MAX_WALL_PHOTOS, networkLayout, photoSwarm, pickSpread, shuffle, spot, type CanvasItem, type NetworkLayout, type VisitorSpot } from './placement';
+import { networkLayout, photoSwarm, spot, type CanvasItem, type NetworkLayout, type VisitorSpot } from './placement';
 
 /** White-wall lettering, sized for the measured distances (spec v4 §1; tuned in Task 11). */
 export const TEXT = {
@@ -147,6 +148,8 @@ export interface GalleryInput {
   aspects: number[];
   portraitIndex: number;
   seed: number;
+  /** Photo indices per scene (spec: scene assignment); empty or missing scenes use the default choice. */
+  scenes?: Partial<Scenes>;
 }
 
 type WallTexts = Omit<Gallery['wall'], 'blockText'>;
@@ -196,6 +199,7 @@ export function computeGallery(input: GalleryInput): Gallery {
   if (n === 0) throw new Error('the gallery needs at least one photo');
   const portraitIndex = clamp(Math.round(input.portraitIndex), 0, n - 1);
   const rnd = mulberry32(input.seed);
+  const S = resolveScenes(input.scenes, n, input.seed);
   const V = gallerySpeed(sequence);
   const white = whiteWalk(sequence, V);
   const track = computeTrack(sequence, V);
@@ -237,8 +241,9 @@ export function computeGallery(input: GalleryInput): Gallery {
     labels.push({ text: 'Friends', number: String(++section), frame: IDENTITY, at: [labelX, LABEL_Y, 0.01], dark: false });
     const xa = labelX + 1.6;
     const xb = photosLabelX - 1.4;
-    const k = Math.min(12, n, Math.max(1, Math.floor((xb - xa) / 1.7) + 1));
-    const indices = pickSpread(n, k);
+    // The assigned photos, as many as the wall has room for.
+    const indices = S.friends.slice(0, Math.max(1, Math.floor((xb - xa) / 1.7) + 1));
+    const k = indices.length;
     portraits = {
       items: indices.map((photoIndex, i) => ({ photoIndex, center: [k === 1 ? (xa + xb) / 2 : lerp(xa, xb, i / (k - 1)), 2.03, 0], width: 1.15, height: 1.15 })),
       // One visitor stands close to the lens, cut by the frame (original 32–34 s); one at the wall.
@@ -250,12 +255,10 @@ export function computeGallery(input: GalleryInput): Gallery {
   const swarmA = photosLabelX + 1.2;
   const swarmB = Math.max(swarmA + 4, wallEnd - 0.8);
   const passer = track.pose(at(photosSeg, 0.55)).pos;
-  const wallPhotos = n <= MAX_WALL_PHOTOS ? Array.from({ length: n }, (_, i) => i) : pickSpread(n, MAX_WALL_PHOTOS);
+  const wallPhotos = S.photos;
   const photos: Gallery['photos'] = {
     // Photos grow along the wall so they stay legible while the camera pulls back (user feedback, v4).
-    items: wallPhotos.length === n
-      ? photoSwarm(aspects, swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.5, 5.3], [0.8, 2.2])
-      : photoSwarm(wallPhotos.map((i) => aspects[i]), swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.5, 5.3], [0.8, 2.2]).map((item) => ({ ...item, photoIndex: wallPhotos[item.photoIndex] })),
+    items: photoSwarm(wallPhotos.map((i) => aspects[i]), swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.5, 5.3], [0.8, 2.2]).map((item) => ({ ...item, photoIndex: wallPhotos[item.photoIndex] })),
     visitors: [
       spot([lerp(swarmA, swarmB, 0.25), 0, 1.2], 0, rnd),
       spot([lerp(swarmA, swarmB, 0.55), 0, 1.6], 2, rnd),
@@ -281,7 +284,7 @@ export function computeGallery(input: GalleryInput): Gallery {
     floors.push({ name: 'dark-floor', frame: IDENTITY, center: [D.x0 + 60, -20], width: 120, depth: 80, dark: true, region: 'walk' });
     if (moments) {
       labels.push({ text: 'Location', number: String(++section), frame: front, at: [D.x0 + 1.5, LABEL_Y, 0.01], dark: true });
-      const indices = n >= 3 ? pickSpread(n, 3, 0.37) : [0, 1, 2].map((i) => i % n);
+      const indices = S.location;
       const lo = D.x0 + 2.2;
       const hi = recess[0] - 1.6;
       const spacing = Math.min(2.6, Math.max(0, (hi - lo) / 2));
@@ -289,7 +292,7 @@ export function computeGallery(input: GalleryInput): Gallery {
       const cx = xAt(at(moments, 0.7));
       location = {
         frame: front,
-        boxes: indices.map((photoIndex, i) => ({ photoIndex, center: [mid + (i - 1) * spacing, 1.65, 0], width: 1.5, height: 2.5 })),
+        boxes: indices.map((photoIndex, i) => ({ photoIndex, center: [mid + (i - (indices.length - 1) / 2) * spacing, 1.65, 0], width: 1.5, height: 2.5 })),
         visitors: [spot([cx - 1.2, 0, 1.3], 2, rnd, true), spot([cx + 3.6, 0, 1.6], 0, rnd, true)],
       };
     }
@@ -324,24 +327,26 @@ export function computeGallery(input: GalleryInput): Gallery {
     walls.push({ name: 'videos-wall', frame: Hh.videosWall, center: [0, WALL_HEIGHT.dark / 2], width: 2 * H.videosHalfWidth, height: WALL_HEIGHT.dark, dark: true, region: 'walk' });
 
     const C = HALL.crt;
-    const screens: Screen[] = Array.from({ length: C.count }, (_, i) => ({ center: [C.from + i * C.pitch, C.y, C.z], width: C.width, height: C.height, bars: i % 3 === 1, photoIndex: (i * 5 + 2) % n }));
+    const screens: Screen[] = Array.from({ length: C.count }, (_, i) => ({ center: [C.from + i * C.pitch, C.y, C.z], width: C.width, height: C.height, bars: i % 3 === 1, photoIndex: S.tvs[i % S.tvs.length] }));
     obstacles.push({ name: 'crt-row', frame: Hh.likesWall, min: [C.from - 0.5, 0, C.z - 0.4], max: [C.from + (C.count - 1) * C.pitch + 0.5, 1.9, C.z + 0.4], region: 'walk' });
     labels.push({ text: 'Likes', number: `${no}.1`, frame: Hh.likesWall, at: [C.from + C.count * C.pitch + 0.6, LABEL_Y, 0.01], dark: true });
 
     const G = HALL.grid;
     const steps = Math.ceil((robotsSeg.start - likes.start) / G.step) + 1;
-    const pool = shuffle(n, rnd);
+    // The assigned photos fill the 30 cells in order; only photos beyond the 30th rotate in (spec §3).
+    const pool = S.grid;
+    const rotates = pool.length > G.cols * G.rows;
     const cells: GridCell[] = [];
     for (let r = 0; r < G.rows; r++) {
       for (let c = 0; c < G.cols; c++) {
-        cells.push({ col: c, row: r, center: [G.offset + (c - (G.cols - 1) / 2) * G.pitchX, G.bottom + (G.rows - 1 - r) * G.pitchY, 0.02], width: G.width, height: G.height, photos: [pool[(r * G.cols + c) % n]] });
+        cells.push({ col: c, row: r, center: [G.offset + (c - (G.cols - 1) / 2) * G.pitchX, G.bottom + (G.rows - 1 - r) * G.pitchY, 0.02], width: G.width, height: G.height, photos: [pool[(r * G.cols + c) % pool.length]] });
       }
     }
     let next = cells.length;
     for (let k = 1; k < steps; k++) {
       // One or two photos change at each step, as on the original's grid wall.
       const changed = new Set([(k * 7 + 3) % cells.length, ...(k % 2 === 0 ? [(k * 11 + 5) % cells.length] : [])]);
-      cells.forEach((cell, i) => cell.photos.push(changed.has(i) ? pool[next++ % n] : cell.photos[k - 1]));
+      cells.forEach((cell, i) => cell.photos.push(rotates && changed.has(i) ? pool[next++ % pool.length] : cell.photos[k - 1]));
     }
     labels.push({ text: 'Photos', number: `${no}.2`, frame: Hh.gridWall, at: [G.offset + (G.cols * G.pitchX) / 2 + 0.7, LABEL_Y, 0.01], dark: true });
 
@@ -357,7 +362,7 @@ export function computeGallery(input: GalleryInput): Gallery {
       thumb,
       crts: { frame: Hh.likesWall, screens },
       grid: { frame: Hh.gridWall, cells, step: G.step, start: likes.start },
-      videos: { frame: Hh.videosWall, photoIndex: pickSpread(n, 1, 0.61)[0], panels, visitors: [spot([-1.2, 0, 1.8], 0, rnd, true), spot([0.3, 0, 1.6], 2, rnd, true)] },
+      videos: { frame: Hh.videosWall, photoIndex: S.videos[0], panels, visitors: [spot([-1.2, 0, 1.8], 0, rnd, true), spot([0.3, 0, 1.6], 2, rnd, true)] },
       visitors: [spot(toWorld(thumb, [-1.5, 0, 2.6]), 1, rnd, true, Math.PI - Hh.turnYaw)],
     };
   }
@@ -405,11 +410,16 @@ export function computeGallery(input: GalleryInput): Gallery {
   for (let t = robotsSeg.start; t <= diveStart; t += 0.25) pathF2.push(toLocal(F2, track.pos.at(t)));
   const clearance = (q: Vec3) => Math.min(...pathF2.map((c) => Math.hypot(c[0] - q[0], c[1] - q[1], c[2] - q[2])));
   const overPlatform = (q: Vec3) => Math.abs(q[0] - px) < P.width / 2 + 1.5 && Math.abs(q[2] - pz) < P.depth / 2 + 1.5 && q[1] < 5.5;
+  // The assigned list: its first ROBOTS.large photos are the large ones by the camera, the rest float around the room.
+  const F = S.floaters;
+  const smallPool = F.length > ROBOTS.large ? F.slice(ROBOTS.large) : F;
+  let smallNext = 0;
+  let largeNext = 0;
   const floaters: Gallery['robots']['floaters'] = [];
   for (let i = 0; floaters.length < ROBOTS.floaters && i < ROBOTS.floaters * 20; i++) {
     const q: Vec3 = [px + lerp(-14, 14, rnd()), rnd() < 0.2 ? lerp(0.12, 0.8, rnd()) : lerp(0.8, 7.5, rnd()), lerp(zBack + 0.5, 2.5, rnd())];
     if (overPlatform(q) || clearance(q) < 1) continue;
-    floaters.push({ photoIndex: Math.floor(rnd() * n), pos: q, size: lerp(0.18, 0.45, rnd()), phase: rnd() * Math.PI * 2 });
+    floaters.push({ photoIndex: smallPool[smallNext++ % smallPool.length], pos: q, size: lerp(0.18, 0.45, rnd()), phase: rnd() * Math.PI * 2 });
   }
   const orbitFrom = Math.floor(pathF2.length * 0.45);
   // The camera orbits looking at the platform, so the large photos stand a little ahead along its motion and
@@ -429,7 +439,7 @@ export function computeGallery(input: GalleryInput): Gallery {
       const q: Vec3 = [c[0] + ox * off + tx * fwd, lerp(0.5, 2.2, rnd()), c[2] + oz * off + tz * fwd];
       const d = clearance(q);
       if (overPlatform(q) || d <= 1.2 || d >= 4) continue;
-      floaters.push({ photoIndex: Math.floor(rnd() * n), pos: q, size: lerp(0.8, 1.3, rnd()), phase: rnd() * Math.PI * 2 });
+      floaters.push({ photoIndex: F[largeNext++ % F.length], pos: q, size: lerp(0.8, 1.3, rnd()), phase: rnd() * Math.PI * 2 });
       break;
     }
   }

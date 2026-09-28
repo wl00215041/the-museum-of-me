@@ -105,6 +105,41 @@ describe('computeGallery', () => {
     for (const node of make(20).gallery.finale.network.nodes) expect(node.radius).toBeGreaterThanOrEqual(0.3);
   });
 
+  it('hangs the photos assigned to each scene, in scene order', () => {
+    const n = 20;
+    const sequence = buildSequence({ photoCount: n, lengthMode: 'auto', musicDuration: null });
+    const aspects = Array.from({ length: n }, (_, i) => [1.5, 0.75, 1][i % 3]);
+    const scenes = { friends: [5, 3, 9], photos: [0, 1, 2, 3, 4], location: [7, 2], tvs: [11, 12], grid: [4, 6, 8], videos: [13], floaters: [15, 16, 17, 18, 19, 14, 10, 1, 2] };
+    const g = computeGallery({ sequence, aspects, portraitIndex: 1, seed: 7, scenes });
+    expect(g.portraits!.items.map((i) => i.photoIndex)).toEqual([5, 3, 9]);
+    expect(g.photos.items.map((i) => i.photoIndex)).toEqual([0, 1, 2, 3, 4]);
+    expect(g.location!.boxes.map((b) => b.photoIndex)).toEqual([7, 2]);
+    const [a, b] = g.location!.boxes.map((x) => x.center[0]);
+    expect(b).toBeGreaterThan(a);
+    expect(g.hall!.crts.screens.map((s) => s.photoIndex)).toEqual([11, 12, 11, 12, 11, 12, 11]);
+    expect(g.hall!.grid.cells.slice(0, 6).map((c) => c.photos[0])).toEqual([4, 6, 8, 4, 6, 8]);
+    for (const c of g.hall!.grid.cells) expect(new Set(c.photos).size).toBe(1);
+    expect(g.hall!.videos.photoIndex).toBe(13);
+    const large = g.robots.floaters.filter((f) => f.size >= 0.8).map((f) => f.photoIndex);
+    expect(large.length).toBeGreaterThan(0);
+    for (const i of large) expect([15, 16, 17, 18, 19, 14, 10]).toContain(i);
+    for (const f of g.robots.floaters.filter((x) => x.size < 0.8)) expect([1, 2]).toContain(f.photoIndex);
+    for (const i of [5, 3, 9, 7, 2, 13, ...large]) expect(g.featured).toContain(i);
+  });
+
+  it('rotates grid photos beyond the first 30 into the grid over time', () => {
+    const n = 60;
+    const sequence = buildSequence({ photoCount: n, lengthMode: 'auto', musicDuration: null });
+    const aspects = Array.from({ length: n }, () => 1.5);
+    const grid = Array.from({ length: 40 }, (_, i) => 59 - i);
+    const g = computeGallery({ sequence, aspects, portraitIndex: 0, seed: 7, scenes: { grid } });
+    const cells = g.hall!.grid.cells;
+    expect(cells.map((c) => c.photos[0])).toEqual(grid.slice(0, 30));
+    const later = new Set(cells.flatMap((c) => c.photos));
+    expect([...later].some((p) => grid.slice(30).includes(p))).toBe(true);
+    for (const p of later) expect(grid).toContain(p);
+  });
+
   it('walls never cross, in every cut', () => {
     for (const c of CUTS) {
       const { gallery } = make(20, c.mode, c.music);
