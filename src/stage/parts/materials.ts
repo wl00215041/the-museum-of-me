@@ -14,6 +14,8 @@ export interface StageMaterials {
   lightboxFrame: MeshStandardMaterial;
   monitorBody: MeshStandardMaterial;
   pedestal: MeshStandardMaterial;
+  pillarDark: MeshStandardMaterial;
+  pillarLight: MeshStandardMaterial;
   sculpture: MeshStandardMaterial;
   robot: { shell: MeshStandardMaterial; joint: MeshStandardMaterial; accent: MeshStandardMaterial };
   visitor: VisitorMaterials;
@@ -33,17 +35,19 @@ export function createStageMaterials(): StageMaterials {
     hair: std(0x2a2522, 0.9), shoes: std(0x1c1c1c, 0.7), silhouette: std(0x060606, 1),
   };
   const shared = {
-    wall: std(0xe9e8e4, 0.95),
+    wall: std(0xd9d8d4, 0.95),
     floor: std(0xcfccc5, 0.5),
     skirting: std(0xd9d7d1, 0.8),
-    darkFloor: std(0x0b0b0c, 0.35, { metalness: 0.2 }),
-    darkWall: std(0x070707, 1),
+    darkFloor: std(0x101010, 0.4, { metalness: 0.15 }),
+    darkWall: std(0x161616, 1),
     blockSide: std(0x2b2b2b, 0.8),
     plaque: std(0xf7f7f5, 0.9),
     platform: std(0xdcdad4, 0.8),
     lightboxFrame: std(0x151515, 0.6),
     monitorBody: std(0x101010, 0.5),
     pedestal: std(0x2a2a2a, 0.7),
+    pillarDark: std(0x1a1a1a, 0.9),
+    pillarLight: std(0xc4c3bf, 0.9),
     sculpture: std(0xa8a8a8, 0.85, { flatShading: true }),
   };
   const nodeLine = new LineBasicMaterial({ color: 0x9aa7b8, transparent: true, opacity: 0.5 });
