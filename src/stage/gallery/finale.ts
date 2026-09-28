@@ -1,6 +1,6 @@
 import {
   AdditiveBlending, BackSide, BufferGeometry, Color, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Matrix4, Mesh,
-  MeshBasicMaterial, PlaneGeometry, Points, PointsMaterial, Quaternion, SphereGeometry, Vector3, Euler, type InstancedMesh, type Material,
+  MeshBasicMaterial, CircleGeometry, PlaneGeometry, Points, PointsMaterial, Quaternion, SphereGeometry, Vector3, Euler, type InstancedMesh, type Material,
 } from 'three';
 import { findSegment, localU, requireSegment } from '../../plan/sequence';
 import type { Vec3 } from '../../types';
@@ -8,7 +8,7 @@ import { clamp, lerp, smoothstep } from '../../util/math';
 import { mulberry32 } from '../../util/rng';
 import { placeIn } from '../frame';
 import { CARPET } from '../gallery';
-import { buildAtlasInstances, createAtlasMaterial, type AtlasInstance } from '../parts/atlas-mesh';
+import { buildAtlasInstances, createAtlasMaterial, makeBillboard, type AtlasInstance } from '../parts/atlas-mesh';
 import { cropTexture } from '../parts/canvas-block';
 import { textUnits } from '../parts/led';
 import { createTextPlane } from '../parts/text-plane';
@@ -21,7 +21,7 @@ type CarpetItem = AtlasInstance & { tint: [number, number, number]; base: [numbe
 type NodeItem = AtlasInstance & { pos: Vec3; radius: number; delay: number };
 
 export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: number): number } {
-  const { sequence, gallery, content, tex, mats } = ctx;
+  const { sequence, gallery, content, tex } = ctx;
   const lib = content.library;
   const fin = gallery.finale;
   const dive = requireSegment(sequence, 'dive');
@@ -118,7 +118,8 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
   networkGroup.name = 'network';
   networkGroup.position.set(fin.lifted[0], fin.lifted[1], fin.lifted[2]);
   networkGroup.visible = false;
-  const core = new Mesh(new SphereGeometry(0.55, 48, 32), owned(new MeshBasicMaterial({ map: portrait })));
+  // Round, flat photos facing the camera (a photo wrapped on a sphere could not be read).
+  const core = new Mesh(new CircleGeometry(0.55, 64), owned(makeBillboard(new MeshBasicMaterial({ map: cropTexture(portrait, lib.aspects[gallery.portraitIndex], 1) }), 'core'), true));
   core.name = 'network-core';
   core.scale.setScalar(0);
   networkGroup.add(core);
@@ -137,7 +138,7 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
     photoIndex: n.photoIndex, matrix: new Matrix4().makeScale(0, 0, 0), pos: n.pos, radius: n.radius, delay: delays[i],
   }));
   const nodeMeshes = nodeItems.length
-    ? buildAtlasInstances({ geometry: new SphereGeometry(1, 20, 14), library: lib, items: nodeItems, material: (a) => mats.atlas(lib.atlases[a], false), rect: 'square' })
+    ? buildAtlasInstances({ geometry: new CircleGeometry(1, 40), library: lib, items: nodeItems, material: (a) => owned(makeBillboard(createAtlasMaterial(lib.atlases[a], false), 'atlas-node')), rect: 'square' })
     : [];
   for (const mesh of nodeMeshes) {
     mesh.name = 'network-nodes';

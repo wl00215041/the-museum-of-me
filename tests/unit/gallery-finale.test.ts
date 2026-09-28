@@ -20,7 +20,7 @@ describe('robot room', () => {
     expect(room.group.position.toArray()).toEqual(ctx.gallery.robots.frame.origin);
     const arms = named(room.group, 'robot-arm');
     expect(arms).toHaveLength(5);
-    expect(count(room.group, 'floaters')).toBe(ctx.gallery.robots.floaters.length);
+    expect(count(room.group, 'floaters') + named(room.group, 'floater-large').length).toBe(ctx.gallery.robots.floaters.length);
     const robots = requireSegment(ctx.sequence, 'robots');
     const grip = () => { room.group.updateMatrixWorld(true); return arms[0].getObjectByName('gripper')!.getWorldPosition(new Vector3()).toArray(); };
     room.update!(robots.start + 2);
@@ -28,6 +28,23 @@ describe('robot room', () => {
     room.update!(robots.start + 6);
     expect(grip()).not.toEqual(a);
   });
+  it('shows the large floating photos sharp: own plane, high-resolution photo, true aspect', () => {
+    const ctx = fakeGalleryContext(20);
+    const room = buildRobotsRoom(ctx);
+    const large = ctx.gallery.robots.floaters.filter((f) => f.size >= 0.8);
+    const meshes = named(room.group, 'floater-large') as Mesh<PlaneGeometry, MeshBasicMaterial>[];
+    expect(meshes).toHaveLength(large.length);
+    meshes.forEach((m, i) => {
+      const idx = large[i].photoIndex;
+      expect(ctx.gallery.featured).toContain(idx);
+      expect(m.material.map!.image).toBe(ctx.content.library.hires.get(idx)!.image);
+      const { width, height } = m.geometry.parameters;
+      expect(width / height).toBeCloseTo(ctx.content.library.aspects[idx], 6);
+      expect(Math.max(width, height)).toBeCloseTo(large[i].size, 6);
+    });
+    expect(count(room.group, 'floaters')).toBe(ctx.gallery.robots.floaters.length - large.length);
+  });
+
   it('arms hold large photos (original 149–152 s)', () => {
     const room = buildRobotsRoom(fakeGalleryContext(20));
     const held = named(room.group, 'held-photo') as Mesh<PlaneGeometry>[];
@@ -127,6 +144,16 @@ describe('finale', () => {
     }
     finale.update!(dive.start);
     expect(tilts()).toEqual(before);
+  });
+
+  it('shows the network photos as flat round discs facing the camera, not spheres', () => {
+    const finale = buildFinale(fakeGalleryContext(30));
+    const [core] = named(finale.group, 'network-core') as Mesh[];
+    const [nodes] = named(finale.group, 'network-nodes') as InstancedMesh[];
+    for (const m of [core, nodes]) {
+      expect(m.geometry.type).toBe('CircleGeometry');
+      expect((m.material as MeshBasicMaterial).userData.billboard).toBe(true);
+    }
   });
 
   it('shoots spokes out of the portrait first; each bubble appears as its spoke arrives, the web comes after', () => {

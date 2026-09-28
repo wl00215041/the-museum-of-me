@@ -434,6 +434,7 @@ export function computeGallery(input: GalleryInput): Gallery {
       ...(portraits?.items.map((i) => i.photoIndex) ?? []),
       ...(location?.boxes.map((b) => b.photoIndex) ?? []),
       ...(hall ? [hall.videos.photoIndex] : []),
+      ...floaters.filter((f) => f.size >= 0.8).map((f) => f.photoIndex),
     ]),
   ];
 

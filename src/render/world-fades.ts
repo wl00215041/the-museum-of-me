@@ -25,11 +25,17 @@ export function worldFadeAt(sequence: Sequence, t: number): Fade {
 }
 
 /** N8AO strength for a bloom level: strong in the white rooms, soft where things glow — continuous (review I3). */
-/** Depth-of-field strength: on through the gallery, fading out as the network grows so every bubble stays sharp. */
+/**
+ * Depth-of-field strength: full through the gallery, weak from the robot room on so the floating photos stay sharp,
+ * and nearly off once the network has grown so every bubble can be read.
+ */
 export function dofScaleAt(sequence: Sequence, t: number): number {
+  const robots = findSegment(sequence, 'robots');
   const network = findSegment(sequence, 'network');
-  if (!network) return 1.5;
-  return 1.5 - 1.3 * smoothstep(network.start, network.start + 0.25 * (network.end - network.start), t);
+  let s = 1.5;
+  if (robots) s -= 1.0 * smoothstep(robots.start, robots.start + 2, t);
+  if (network) s -= 0.3 * smoothstep(network.start, network.start + 0.25 * (network.end - network.start), t);
+  return s;
 }
 
 export function aoIntensityFor(glow: number): number {

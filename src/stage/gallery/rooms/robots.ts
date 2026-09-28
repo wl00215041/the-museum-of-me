@@ -5,14 +5,17 @@ import { ROBOTS } from '../../gallery';
 import type { Gallery } from '../../gallery';
 import { buildAtlasInstances, cellTexture, type AtlasInstance } from '../../parts/atlas-mesh';
 import { armAngles, createRobotArm } from '../../parts/robot-arm';
-import type { GalleryContext, RoomObject } from '../context';
+import { hiresOf, type GalleryContext, type RoomObject } from '../context';
 
 type Floater = Gallery['robots']['floaters'][number];
 
-function floaterMatrix(f: Floater, t: number): Matrix4 {
+/** Floaters at least this big get their own plane with the high-resolution photo, so they read sharply up close. */
+export const LARGE_FLOATER = 0.8;
+
+function floaterMatrix(f: Floater, t: number, size = f.size): Matrix4 {
   // Facing the room's entrance, turning a little (the original's photos mostly face the camera).
   const q = new Quaternion().setFromEuler(new Euler(0.12 * Math.sin(0.3 * t + f.phase), 0.45 * Math.sin(f.phase) + 0.12 * Math.sin(0.2 * t + f.phase), 0));
-  return new Matrix4().compose(new Vector3(f.pos[0], f.pos[1] + 0.15 * Math.sin(0.4 * t + f.phase), f.pos[2]), q, new Vector3(f.size, f.size, 1));
+  return new Matrix4().compose(new Vector3(f.pos[0], f.pos[1] + 0.15 * Math.sin(0.4 * t + f.phase), f.pos[2]), q, new Vector3(size, size, 1));
 }
 
 /** The white robot room straight ahead after the door (original 125–150 s). */
@@ -31,7 +34,7 @@ export function buildRobotsRoom(ctx: GalleryContext): RoomObject {
   const floaters = buildAtlasInstances({
     geometry: new PlaneGeometry(1, 1),
     library: lib,
-    items: r.floaters.map((f) => ({ photoIndex: f.photoIndex, matrix: floaterMatrix(f, 0), floater: f })),
+    items: r.floaters.filter((f) => f.size < LARGE_FLOATER).map((f) => ({ photoIndex: f.photoIndex, matrix: floaterMatrix(f, 0), floater: f })),
     material: (atlas) => mats.atlas(lib.atlases[atlas], false, true),
     rect: 'fit',
   });
@@ -39,6 +42,16 @@ export function buildRobotsRoom(ctx: GalleryContext): RoomObject {
     mesh.name = 'floaters';
     group.add(mesh);
   }
+  const large = r.floaters.filter((f) => f.size >= LARGE_FLOATER).map((f) => {
+    const a = lib.aspects[f.photoIndex];
+    const material = new MeshBasicMaterial({ map: hiresOf(content, f.photoIndex), side: DoubleSide });
+    material.userData.owned = true;
+    const mesh = new Mesh(new PlaneGeometry(a >= 1 ? f.size : f.size * a, a >= 1 ? f.size / a : f.size), material);
+    mesh.name = 'floater-large';
+    mesh.matrixAutoUpdate = false;
+    group.add(mesh);
+    return { mesh, f };
+  });
 
   const arms = r.arms.map((spec, i) => {
     const heldMaterial = new MeshBasicMaterial({ map: cellTexture(lib, r.floaters[i % r.floaters.length].photoIndex, 'square'), side: DoubleSide });
@@ -63,6 +76,7 @@ export function buildRobotsRoom(ctx: GalleryContext): RoomObject {
       (mesh.userData.items as (AtlasInstance & { floater: Floater })[]).forEach((item, i) => mesh.setMatrixAt(i, floaterMatrix(item.floater, t)));
       mesh.instanceMatrix.needsUpdate = true;
     }
+    for (const { mesh, f } of large) mesh.matrix.copy(floaterMatrix(f, t, 1));
   };
   update(segment.start);
   return { group, update };

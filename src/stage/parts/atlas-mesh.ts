@@ -17,6 +17,29 @@ export function createAtlasMaterial(atlas: Texture, lit: boolean, doubleSide = f
   return material;
 }
 
+/** Draws each (instanced) mesh as a flat billboard that always faces the camera, keeping its scale. */
+export function makeBillboard<M extends Material>(material: M, key: string): M {
+  const previous = material.onBeforeCompile.bind(material);
+  material.onBeforeCompile = (shader, renderer) => {
+    previous(shader, renderer);
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <project_vertex>',
+      `#ifdef USE_INSTANCING
+  vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+  float bbScale = length(instanceMatrix[0].xyz) * length(modelMatrix[0].xyz);
+#else
+  vec4 mvPosition = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+  float bbScale = length(modelMatrix[0].xyz);
+#endif
+  mvPosition.xy += transformed.xy * bbScale;
+  gl_Position = projectionMatrix * mvPosition;`,
+    );
+  };
+  material.customProgramCacheKey = () => `billboard-${key}`;
+  material.userData.billboard = true;
+  return material;
+}
+
 export interface AtlasInstance {
   photoIndex: number;
   matrix: Matrix4;

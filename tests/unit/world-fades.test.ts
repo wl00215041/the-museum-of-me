@@ -33,6 +33,12 @@ describe('worldFadeAt', () => {
     expect(worldFadeAt(short, (mosaic.start + mosaic.end) / 2).amount).toBe(0);
   });
 
+  it('keeps the floating photos in the robot room sharp: weak depth of field there', () => {
+    const robots = requireSegment(s, 'robots');
+    const dive = requireSegment(s, 'dive');
+    for (let t = robots.start + 3; t < dive.start; t += 0.5) expect(dofScaleAt(s, t)).toBeLessThanOrEqual(0.6);
+  });
+
   it('keeps the network sharp: depth of field fades out as the network grows, without a jump', () => {
     const start = network.start;
     expect(dofScaleAt(s, 30)).toBe(1.5);
