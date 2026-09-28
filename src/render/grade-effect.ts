@@ -20,30 +20,40 @@ float hash(vec2 p) {
   return fract(p.x * p.y);
 }
 
+vec3 toSrgb(vec3 c) {
+  return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
+}
+
+vec3 toLinear(vec3 c) {
+  return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+}
+
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-  vec3 c = inputColor.rgb;
-  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-  c = mix(vec3(l), c, saturation);
-  c = c * (1.0 - lift) + lift;
-  c += (hash(gl_FragCoord.xy + seed) - 0.5) * grainAmount;
+  // Effects run in linear light and are encoded to sRGB at the end; grading happens in display space.
+  vec3 s = toSrgb(clamp(inputColor.rgb, 0.0, 1.0));
+  float l = dot(s, vec3(0.2126, 0.7152, 0.0722));
+  s = mix(vec3(l), s, saturation);
+  s = s * (1.0 - lift) + lift;
+  s += (hash(gl_FragCoord.xy + seed) - 0.5) * grainAmount * (0.25 + 0.75 * l);
+  vec3 c = toLinear(clamp(s, 0.0, 1.0));
   c = mix(c, fadeColor, fadeAmount);
   if (abs(uv.y - 0.5) > letterbox) c = vec3(0.0);
   outputColor = vec4(c, 1.0); // video frames are always opaque
 }
 `;
 
-/** Desaturation, lifted blacks, film grain, dips to black/white and the 2.35:1 letterbox. */
+/** Desaturation, a slight black lift and luminance-weighted grain in sRGB, fades and the 2.35:1 letterbox. */
 export class GradeEffect extends Effect {
   constructor() {
     super('GradeEffect', fragmentShader, {
       uniforms: new Map<string, Uniform>([
         ['fadeColor', new Uniform(new Vector3(1, 1, 1))],
         ['fadeAmount', new Uniform(0)],
-        ['grainAmount', new Uniform(0.035)],
+        ['grainAmount', new Uniform(0.03)],
         ['seed', new Uniform(0)],
         ['letterbox', new Uniform(LETTERBOX_HALF)],
-        ['saturation', new Uniform(0.8)],
-        ['lift', new Uniform(0.02)],
+        ['saturation', new Uniform(0.88)],
+        ['lift', new Uniform(0.012)],
       ]),
     });
   }

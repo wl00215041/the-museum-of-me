@@ -50,6 +50,7 @@ test('every shot renders with the expected brightness inside a 2.35:1 letterbox'
     expect(stats.contrast, `${shot.id} contrast`).toBeGreaterThan(25);
     if (KIND[shot.id] === 'white') expect(stats.median, `${shot.id} should be a white room`).toBeGreaterThan(140);
     if (KIND[shot.id] === 'dark') expect(stats.median, `${shot.id} should be a dark room`).toBeLessThan(90);
+    if (shot.id === 'network') expect(stats.median, 'network background should be near-black').toBeLessThan(20);
   }
   expect(errors).toEqual([]);
 });
