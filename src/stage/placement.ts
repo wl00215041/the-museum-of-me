@@ -66,7 +66,7 @@ function overlapWithRecent(items: CanvasItem[], x: number, y: number, w: number,
 }
 
 /** Salon-style swarm rising from lower left to upper right, thickening as it goes (the original's Photos wall). */
-export function photoSwarm(aspects: number[], xa: number, xb: number, rnd: () => number, wallHeight = 6, z = 0): CanvasItem[] {
+export function photoSwarm(aspects: number[], xa: number, xb: number, rnd: () => number, wallHeight = 6, z = 0, rise: readonly [number, number] = [1.25, 3.4]): CanvasItem[] {
   const n = aspects.length;
   const span = xb - xa;
   const base = clamp(Math.sqrt((span * 1.6) / n) * 0.72, 0.22, 0.95);
@@ -75,7 +75,7 @@ export function photoSwarm(aspects: number[], xa: number, xb: number, rnd: () =>
     const u = (photoIndex + 0.5) / n;
     const long = base * (0.8 + 0.4 * rnd());
     const { width, height } = canvasSize(aspect, long);
-    const centerY = lerp(1.25, 3.4, u ** 0.8);
+    const centerY = lerp(rise[0], rise[1], u ** 0.8);
     const thickness = lerp(0.4, 2.4, u);
     const x = xa + u * span + (rnd() - 0.5) * Math.min(span / n, 1.2) * 1.5;
     let best: Vec3 = [x, clamp(centerY, 0.6 + height / 2, wallHeight - 0.6 - height / 2), z];
@@ -137,7 +137,12 @@ export function networkLayout(n: number, portraitIndex: number, rnd: () => numbe
     seen.add(key);
     edges.push([Math.min(a, b), Math.max(a, b)]);
   };
-  for (let i = 0; i < Math.min(24, nodes.length); i++) add(-1, i);
+  // The core links to its 24 nearest nodes, all around it (review M1: indices 0–23 are the Fibonacci top cap).
+  nodes
+    .map((node, i) => ({ i, d: Math.hypot(node.pos[0], node.pos[1], node.pos[2]) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 24)
+    .forEach(({ i }) => add(-1, i));
   nodes.forEach((a, i) => {
     nodes
       .map((b, j) => ({ j, d: Math.hypot(a.pos[0] - b.pos[0], a.pos[1] - b.pos[1], a.pos[2] - b.pos[2]) }))

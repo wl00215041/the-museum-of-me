@@ -257,8 +257,9 @@ export function computeTrack(sequence: Sequence, V: number): Track {
         };
       },
     });
-    const right = s0.pos[0] + x.at(w.end) + W.rightMargin;
-    const cx = right - W.ledWidth / 2;
+    // Keep the recess clear of the white wall's end when Words follows Photos directly (60 s cut).
+    const cx = Math.max(s0.pos[0] + x.at(w.end) + W.rightMargin - W.ledWidth / 2, whiteWallEnd + TRACK.dark.wallEndPastCamera + W.recessMargin + W.ledWidth / 2);
+    const right = cx + W.ledWidth / 2;
     wordsAnchor = { center: [cx, W.ledY, zLed], width: W.ledWidth, height: W.ledHeight, recess: [cx - W.ledWidth / 2 - W.recessMargin, right + W.recessMargin] };
   }
 
@@ -294,7 +295,8 @@ export function computeTrack(sequence: Sequence, V: number): Track {
     regions.push({ start: tTurn, end: tOrbitEnd, pose: orbit });
     const last = orbit(tOrbitEnd);
     const vy = last.yaw;
-    const vT = TRACK.truck.videos * V;
+    // Truck at the original pace of its segment, so it covers the same distance in every cut.
+    const vT = TRACK.truck.videos * TRACK.speed * pace(videos ?? l);
     const truck = integral((t) => vT * smoothstep(tOrbitEnd, tOrbitEnd + TRACK.truck.ramp, t), tOrbitEnd, robots.start);
     regions.push({ start: tOrbitEnd, end: robots.start, pose: (t) => ({ pos: add(last.pos, scale(rightOf(vy), truck.at(t))), yaw: vy, focus: H0.videosWall }) });
     // Walls in a chain: Videos wall, the grid wall turned 50° at its right end, then the Likes wall.
