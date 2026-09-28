@@ -4,6 +4,10 @@
 
 ## 使用
 
+線上版：https://wl00215041.github.io/the-museum-of-me/（建議使用桌面版 Chrome；照片只在你的瀏覽器中處理）
+
+本機執行：
+
 ```bash
 npm install
 npm run dev        # http://localhost:5173
@@ -41,6 +45,7 @@ npm test           # Vitest 單元測試（時間表、配置、鏡頭、配樂�
 npm run test:e2e   # Playwright（使用系統 Google Chrome；匯出測試需數分鐘）
 npm run typecheck
 npm run build
+npm run build:pages   # GitHub Pages 版（base 為 /the-museum-of-me/），輸出到 dist/
 npm run fixtures   # 重新產生 tests/fixtures（需要 ffmpeg）
 ```
 
