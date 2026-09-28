@@ -45,3 +45,27 @@ export interface ProjectInput {
   resolution: Resolution;
   music: File | null;
 }
+
+export type ShotId =
+  | 'title' | 'intro' | 'exhibition' | 'portraits' | 'photos' | 'moments' | 'words'
+  | 'likes' | 'videos' | 'robots' | 'mosaic' | 'network' | 'ending';
+
+export const SHOT_ORDER: readonly ShotId[] = [
+  'title', 'intro', 'exhibition', 'portraits', 'photos', 'moments', 'words',
+  'likes', 'videos', 'robots', 'mosaic', 'network', 'ending',
+];
+
+export type LengthMode = 'auto' | 30 | 60 | 90 | 120 | 'music';
+
+export type MusicStyle = 'airy' | 'calm' | 'upload';
+
+export interface ShotSpan {
+  id: ShotId;
+  start: number;
+  end: number;
+}
+
+export interface Storyboard {
+  total: number;
+  shots: ShotSpan[];
+}
