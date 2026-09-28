@@ -1,4 +1,5 @@
 import type { Vec3 } from '../types';
+import type { CharacterId } from './parts/characters';
 import { clamp, lerp } from '../util/math';
 
 export const MAX_NETWORK_NODES = 150;
@@ -20,7 +21,7 @@ export interface CanvasItem {
 export interface VisitorSpot {
   pos: Vec3;
   yaw: number;
-  pose: 0 | 1 | 2;
+  character: CharacterId;
   dark: boolean;
   scale: number;
 }
@@ -49,8 +50,8 @@ export function pickSpread(n: number, k: number, shift = 0.5): number[] {
   return out;
 }
 
-export const spot = (pos: Vec3, pose: 0 | 1 | 2, rnd: () => number, dark = false, yaw = Math.PI): VisitorSpot => ({
-  pos, yaw, pose, dark, scale: 0.97 + rnd() * 0.06,
+export const spot = (pos: Vec3, character: CharacterId, rnd: () => number, dark = false, yaw = Math.PI): VisitorSpot => ({
+  pos, yaw, character, dark, scale: 0.97 + rnd() * 0.06,
 });
 
 function canvasSize(aspect: number, long: number): { width: number; height: number } {

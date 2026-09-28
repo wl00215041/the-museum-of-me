@@ -247,7 +247,7 @@ export function computeGallery(input: GalleryInput): Gallery {
     portraits = {
       items: indices.map((photoIndex, i) => ({ photoIndex, center: [k === 1 ? (xa + xb) / 2 : lerp(xa, xb, i / (k - 1)), 2.03, 0], width: 1.15, height: 1.15 })),
       // One visitor stands close to the lens, cut by the frame (original 32–34 s); one at the wall.
-      visitors: [spot([xAt(at(portraitsSeg, 0.62)) + 0.8, 0, 4.4], 0, rnd), spot([xAt(at(portraitsSeg, 0.8)) + 1.8, 0, 1.0], 1, rnd)],
+      visitors: [spot([xAt(at(portraitsSeg, 0.62)) + 0.8, 0, 4.4], 'ponytail', rnd), spot([xAt(at(portraitsSeg, 0.8)) + 1.8, 0, 1.0], 'dress', rnd)],
     };
   }
 
@@ -260,11 +260,11 @@ export function computeGallery(input: GalleryInput): Gallery {
     // Photos grow along the wall so they stay legible while the camera pulls back (user feedback, v4).
     items: photoSwarm(wallPhotos.map((i) => aspects[i]), swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.5, 5.3], [0.8, 2.2]).map((item) => ({ ...item, photoIndex: wallPhotos[item.photoIndex] })),
     visitors: [
-      spot([lerp(swarmA, swarmB, 0.25), 0, 1.2], 0, rnd),
-      spot([lerp(swarmA, swarmB, 0.55), 0, 1.6], 2, rnd),
-      spot([lerp(swarmA, swarmB, 0.8), 0, 2.4], 1, rnd),
+      spot([lerp(swarmA, swarmB, 0.25), 0, 1.2], 'blazer', rnd),
+      spot([lerp(swarmA, swarmB, 0.55), 0, 1.6], 'whitetop', rnd),
+      spot([lerp(swarmA, swarmB, 0.8), 0, 2.4], 'tshirt', rnd),
       // Passes right in front of the lens during the pull-back (original 46 s).
-      spot([passer[0] - 0.5, 0, passer[2] - 1.4], 0, rnd),
+      spot([passer[0] - 1.6, 0, passer[2] - 4.2], 'passer', rnd),
     ],
   };
 
@@ -293,7 +293,7 @@ export function computeGallery(input: GalleryInput): Gallery {
       location = {
         frame: front,
         boxes: indices.map((photoIndex, i) => ({ photoIndex, center: [mid + (i - (indices.length - 1) / 2) * spacing, 1.65, 0], width: 1.5, height: 2.5 })),
-        visitors: [spot([cx - 1.2, 0, 1.3], 2, rnd, true), spot([cx + 3.6, 0, 1.6], 0, rnd, true)],
+        visitors: [spot([cx - 1.2, 0, 1.3], 'tshirt', rnd, true), spot([cx + 3.6, 0, 1.6], 'dress', rnd, true)],
       };
     }
     if (words && A.words) {
@@ -305,7 +305,7 @@ export function computeGallery(input: GalleryInput): Gallery {
       if (!likes) walls.push({ name: 'recess-right', frame: { origin: [recess[1], 0, zLed], yaw: Math.PI / 2 }, center: [(D.wallZ - zLed) / 2, WALL_HEIGHT.dark / 2], width: D.wallZ - zLed, height: WALL_HEIGHT.dark, dark: true, region: 'walk' });
       wordsRoom = {
         wall: { center: [W.center[0], W.center[1], zLed + 0.02], width: W.width, height: W.height },
-        visitors: [spot([W.center[0] - 2.5, 0, zLed + 1.8], 0, rnd, true), spot([W.center[0] + 1.5, 0, zLed + 2.2], 1, rnd, true)],
+        visitors: [spot([W.center[0] - 2.5, 0, zLed + 1.8], 'blazer', rnd, true), spot([W.center[0] + 1.5, 0, zLed + 2.2], 'whitetop', rnd, true)],
       };
     }
   }
@@ -362,8 +362,8 @@ export function computeGallery(input: GalleryInput): Gallery {
       thumb,
       crts: { frame: Hh.likesWall, screens },
       grid: { frame: Hh.gridWall, cells, step: G.step, start: likes.start },
-      videos: { frame: Hh.videosWall, photoIndex: S.videos[0], panels, visitors: [spot([-1.2, 0, 1.8], 0, rnd, true), spot([0.3, 0, 1.6], 2, rnd, true)] },
-      visitors: [spot(toWorld(thumb, [-1.5, 0, 2.6]), 1, rnd, true, Math.PI - Hh.turnYaw)],
+      videos: { frame: Hh.videosWall, photoIndex: S.videos[0], panels, visitors: [spot([-1.2, 0, 1.8], 'passer', rnd, true), spot([0.3, 0, 1.6], 'ponytail', rnd, true)] },
+      visitors: [spot(toWorld(thumb, [-1.5, 0, 2.6]), 'tshirt', rnd, true, Math.PI - Hh.turnYaw)],
     };
   }
 

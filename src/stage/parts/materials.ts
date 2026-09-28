@@ -32,9 +32,19 @@ export function createStageMaterials(): StageMaterials {
   const std = (color: number, roughness: number, extra: Partial<{ metalness: number; flatShading: boolean }> = {}) =>
     new MeshStandardMaterial({ color, roughness, metalness: 0, ...extra });
   const robot = { shell: std(0xe6e6e3, 0.45), joint: std(0x1b1b1d, 0.5), accent: std(0x6d6f73, 0.35, { metalness: 0.6 }) };
+  const fabrics = new Map<string, MeshStandardMaterial>();
+  const silhouette = std(0x060606, 1);
   const visitor: VisitorMaterials = {
-    shirt: std(0x7d7f82, 0.9), pants: std(0x3a3b3e, 0.9), skin: std(0xb9a391, 0.8),
-    hair: std(0x2a2522, 0.9), shoes: std(0x1c1c1c, 0.7), silhouette: std(0x060606, 1),
+    silhouette,
+    fabric(color, roughness) {
+      const key = `${color}:${roughness}`;
+      let m = fabrics.get(key);
+      if (!m) {
+        m = std(color, roughness);
+        fabrics.set(key, m);
+      }
+      return m;
+    },
   };
   const shared = {
     wall: std(0xd9d8d4, 0.95),
@@ -57,7 +67,7 @@ export function createStageMaterials(): StageMaterials {
   const nodeLine = new LineBasicMaterial({ color: 0x9aa7b8, transparent: true, opacity: 0.5 });
   const starLine = new LineBasicMaterial({ color: 0x3b6fb6, transparent: true, opacity: 0.35 });
   const atlasCache = new Map<string, Material>();
-  const all: Material[] = [...Object.values(shared), ...Object.values(robot), ...Object.values(visitor), nodeLine, starLine];
+  const all: Material[] = [...Object.values(shared), ...Object.values(robot), silhouette, nodeLine, starLine];
   return {
     ...shared,
     robot,
@@ -77,6 +87,8 @@ export function createStageMaterials(): StageMaterials {
       all.forEach((m) => m.dispose());
       atlasCache.forEach((m) => m.dispose());
       atlasCache.clear();
+      fabrics.forEach((m) => m.dispose());
+      fabrics.clear();
     },
   };
 }
