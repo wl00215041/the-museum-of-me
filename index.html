@@ -20,27 +20,32 @@
         <form id="setup-form" novalidate>
           <fieldset class="block">
             <legend>1. 照片</legend>
-            <label id="dropzone" class="dropzone" for="photo-input">
-              <strong>點此選擇或拖放照片</strong>
-              <span>3–500 張；可拖曳縮圖調整順序，點選縮圖可編輯說明文字或設為主視覺</span>
-            </label>
-            <input id="photo-input" type="file" accept="image/*" multiple hidden />
-            <p id="setup-notice" class="notice" role="status"></p>
-            <div id="photo-detail" class="photo-detail" hidden>
-              <canvas id="detail-preview" width="240" height="180"></canvas>
-              <div class="detail-fields">
-                <p id="detail-index" class="detail-index"></p>
-                <label class="field"><span>說明文字</span><input id="detail-caption" maxlength="80" placeholder="說明文字（選填）" /></label>
-                <div class="detail-actions">
-                  <button id="detail-portrait" type="button">設為主視覺</button>
-                  <button id="detail-left" type="button" aria-label="往前移">←</button>
-                  <button id="detail-right" type="button" aria-label="往後移">→</button>
-                  <button id="detail-remove" type="button">移除</button>
+            <div class="photos-layout">
+              <div class="library">
+                <label id="dropzone" class="dropzone" for="photo-input">
+                  <strong>點此選擇或拖放照片</strong>
+                  <span>3–500 張；點選縮圖可編輯說明文字或設為主視覺，拖曳縮圖到右側場景可指定照片出現的地方</span>
+                </label>
+                <input id="photo-input" type="file" accept="image/*" multiple hidden />
+                <p id="setup-notice" class="notice" role="status"></p>
+                <div id="photo-detail" class="photo-detail" hidden>
+                  <canvas id="detail-preview" width="240" height="180"></canvas>
+                  <div class="detail-fields">
+                    <p id="detail-index" class="detail-index"></p>
+                    <label class="field"><span>說明文字</span><input id="detail-caption" maxlength="80" placeholder="說明文字（選填）" /></label>
+                    <div class="detail-actions">
+                      <button id="detail-portrait" type="button">設為主視覺</button>
+                      <button id="detail-left" type="button" aria-label="往前移">←</button>
+                      <button id="detail-right" type="button" aria-label="往後移">→</button>
+                      <button id="detail-remove" type="button">移除</button>
+                    </div>
+                  </div>
                 </div>
+                <p id="photo-count" class="notice">0 / 500 張</p>
+                <ol id="photo-grid" class="photo-grid"></ol>
               </div>
+              <section id="scene-board" class="scene-board" aria-label="場景"></section>
             </div>
-            <p id="photo-count" class="notice">0 / 500 張</p>
-            <ol id="photo-grid" class="photo-grid"></ol>
           </fieldset>
           <fieldset class="block">
             <legend>2. 展覽資訊</legend>

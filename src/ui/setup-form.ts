@@ -1,4 +1,7 @@
+import { buildSequence } from '../plan/sequence';
+import { scenesInCut } from '../plan/scenes';
 import type { ProjectInput, Resolution } from '../types';
+import { mountSceneBoard, scenesToIndices } from './scene-board';
 import { MAX_PHOTOS, capPhotos, isImageFile, parseDuration, parseKeywords, parseMusicStyle, validateSetup } from './validate';
 
 export interface PreviewSource {
@@ -76,6 +79,20 @@ export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSub
   let touched = false;
 
   const tileOf = (id: number) => grid.querySelector<HTMLLIElement>(`[data-id="${id}"]`);
+  const board = mountSceneBoard(q<HTMLElement>('#scene-board'), {
+    draw(id, canvas) {
+      const entry = entries.find((e) => e.id === id);
+      if (!entry) return;
+      if (entry.preview) drawCover(canvas, entry.preview);
+      else requestPreview(entry);
+    },
+    dragged: () => dragId,
+    name: (id) => entries.find((e) => e.id === id)?.file.name ?? '',
+  });
+  const syncScenesToLength = () => {
+    const mode = parseDuration(duration.value);
+    board.setAvailable(mode === 'music' ? null : scenesInCut(buildSequence({ photoCount: Math.max(1, entries.length), lengthMode: mode, musicDuration: null })));
+  };
 
   const observer = new IntersectionObserver(
     (records) => {
@@ -93,6 +110,7 @@ export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSub
     const canvas = tileOf(entry.id)?.querySelector('canvas');
     if (canvas && entry.preview) drawCover(canvas, entry.preview);
     if (selectedId === entry.id && entry.preview) drawCover(detailPreview, entry.preview);
+    if (entry.preview) board.repaint(entry.id);
   }
 
   function requestPreview(entry: PhotoEntry): void {
@@ -167,6 +185,7 @@ export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSub
       if (entry.preview) paint(entry);
       else observer.observe(tileOf(entry.id)!);
     }
+    board.setPhotos(entries.map((e) => e.id));
     renderDetail();
     refresh();
   }
@@ -206,6 +225,7 @@ export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSub
     musicUpload.hidden = !upload;
     musicLength.disabled = !(upload && (music.files?.length ?? 0) > 0);
     if (musicLength.disabled && duration.value === 'music') duration.value = 'auto';
+    syncScenesToLength();
   }
 
   detailCaption.addEventListener('input', () => {
@@ -247,6 +267,7 @@ export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSub
   });
   musicStyle.addEventListener('change', syncMusicLength);
   music.addEventListener('change', syncMusicLength);
+  duration.addEventListener('change', syncScenesToLength);
 
   form.addEventListener('submit', (ev) => {
     ev.preventDefault();
@@ -266,6 +287,7 @@ export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSub
       resolution: resolution.value as Resolution,
       musicStyle: style,
       music: style === 'upload' ? music.files?.[0] ?? null : null,
+      scenes: scenesToIndices(entries.map((e) => e.id), board.value()),
     });
   });
 
