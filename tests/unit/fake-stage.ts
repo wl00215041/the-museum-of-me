@@ -13,6 +13,7 @@ export function fakeTextures(aspect = 4): StageTextureFactory {
     glow: () => new Texture(),
     lightbox: () => new Texture(),
     colorBars: () => new Texture(),
+    concrete: () => new Texture(),
   };
 }
 

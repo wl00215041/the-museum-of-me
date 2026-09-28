@@ -23,6 +23,7 @@ test('stage texture helpers render at the expected sizes', async ({ page }) => {
       maskLength: mask.length,
       lit: mask.reduce((s, v) => s + (v > 0 ? 1 : 0), 0),
       serifAspect: serif.aspect,
+      concrete: (() => { const c = f.concrete(); return [c.image.width, c.wrapS]; })(),
     };
   });
   expect(r.lightbox).toEqual([520, 1120]);
@@ -30,4 +31,5 @@ test('stage texture helpers render at the expected sizes', async ({ page }) => {
   expect(r.maskLength).toBe(8000);
   expect(r.lit).toBeGreaterThan(200);
   expect(r.serifAspect).toBeGreaterThan(3);
+  expect(r.concrete).toEqual([1024, 1000]); // 1000 = THREE.RepeatWrapping
 });

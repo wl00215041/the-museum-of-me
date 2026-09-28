@@ -41,4 +41,6 @@ export interface StageTextureFactory extends TextureFactory {
   lightbox(image: ImageLike, lines: string[]): Texture;
   /** SMPTE-style colour bars for the monitor wall. */
   colorBars(): Texture;
+  /** Seamless grey concrete for gallery floors. */
+  concrete(): Texture;
 }

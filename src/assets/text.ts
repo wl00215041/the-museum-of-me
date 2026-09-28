@@ -1,4 +1,5 @@
-import { CanvasTexture, SRGBColorSpace, type Texture } from 'three';
+import { CanvasTexture, RepeatWrapping, SRGBColorSpace, type Texture } from 'three';
+import { mulberry32 } from '../util/rng';
 import type { FontFamily, ImageLike, StageTextureFactory, TextLine, TextSpec, TextTexture } from './texture-factory';
 
 export const FONT_STACK = '"Noto Sans TC", "Noto Sans JP", system-ui, sans-serif';
@@ -136,6 +137,43 @@ function colorBars(): Texture {
   return toTexture(canvas);
 }
 
+function concrete(): Texture {
+  const size = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = context2d(canvas);
+  const rnd = mulberry32(0xc0ffee);
+  ctx.fillStyle = '#a49f97';
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 70; i++) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    const r = 60 + rnd() * 220;
+    const light = rnd() > 0.5;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, light ? 'rgba(255, 252, 245, 0.06)' : 'rgba(40, 36, 30, 0.07)');
+    g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = g;
+    // Draw each blotch wrapped around the edges so the texture tiles without seams.
+    for (const dx of [-size, 0, size]) for (const dy of [-size, 0, size]) {
+      ctx.save();
+      ctx.translate(dx, dy);
+      ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+      ctx.restore();
+    }
+  }
+  for (let i = 0; i < 26000; i++) {
+    const v = Math.floor(120 + rnd() * 100);
+    ctx.fillStyle = `rgba(${v}, ${v - 4}, ${v - 10}, ${0.08 + rnd() * 0.2})`;
+    ctx.fillRect(rnd() * size, rnd() * size, 0.5 + rnd() * 1.6, 0.5 + rnd() * 1.6);
+  }
+  const texture = toTexture(canvas);
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  return texture;
+}
+
 /** Draws lines of text into a cols × rows mask (255 = lit) for the LED wall. */
 export function rasterizeLines(lines: string[], cols: number, rows: number, family: FontFamily = 'grotesk', weight = 800): Uint8Array {
   const canvas = document.createElement('canvas');
@@ -155,5 +193,5 @@ export function rasterizeLines(lines: string[], cols: number, rows: number, fami
 }
 
 export function createCanvasTextureFactory(): StageTextureFactory {
-  return { text, glow, lightbox, colorBars };
+  return { text, glow, lightbox, colorBars, concrete };
 }
