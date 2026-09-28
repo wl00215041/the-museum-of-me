@@ -4,7 +4,7 @@ import { createPhotoPool, type PhotoPool } from './assets/photo-pool';
 import { exportVideo, type ExportProgress } from './export/exporter';
 import { exportFilename } from './export/filename';
 import { createPlayer, type Player } from './preview/player';
-import { createStageRenderer, type MuseumRenderer } from './render/stage-renderer';
+import { createWorldRenderer, type MuseumRenderer } from './render/world-renderer';
 import { FPS, RESOLUTIONS } from './types';
 import { mountSetupForm } from './ui/setup-form';
 import { formatTime } from './util/format';
@@ -70,8 +70,8 @@ function openStage(project: Project): void {
   viewport.replaceChildren(canvas);
   setup.hidden = true;
   stage.hidden = false;
-  const total = project.storyboard.total;
-  const renderer = createStageRenderer({ canvas, stage: project.stage, camera: project.camera, storyboard: project.storyboard });
+  const total = project.sequence.total;
+  const renderer = createWorldRenderer({ canvas, world: project.world, camera: project.camera, sequence: project.sequence });
   const player = createPlayer({ render: renderer.renderFrame, audio: project.soundtrack, total, onTick: onTick(total) });
   session = { project, canvas, renderer, player };
   scrub.max = String(total);
@@ -132,7 +132,7 @@ async function runExport(s: Session): Promise<void> {
   s.renderer.setSize(width, height);
   try {
     const result = await exportVideo({
-      canvas: s.canvas, renderFrame: s.renderer.renderFrame, total: s.project.storyboard.total, fps: FPS,
+      canvas: s.canvas, renderFrame: s.renderer.renderFrame, total: s.project.sequence.total, fps: FPS,
       width, height, bitrate, audio: s.project.soundtrack, signal: controller.signal, onProgress: showProgress,
     });
     download(result.blob, exportFilename(s.project.input.name, new Date(), result.extension));

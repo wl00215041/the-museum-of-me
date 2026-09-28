@@ -1,6 +1,6 @@
 import { Effect } from 'postprocessing';
 import { Uniform, Vector3 } from 'three';
-import type { Fade } from './transitions';
+import type { Fade } from './world-fades';
 
 /** Half the visible band height (in uv) for 2.35:1 inside 16:9. */
 export const LETTERBOX_HALF = 16 / 9 / 2.35 / 2;

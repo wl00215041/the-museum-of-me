@@ -1,5 +1,5 @@
 import { BoxGeometry, CapsuleGeometry, CylinderGeometry, Group, Mesh, SphereGeometry, type BufferGeometry, type Material } from 'three';
-import type { VisitorSpot } from '../layout';
+import type { VisitorSpot } from '../placement';
 
 export interface VisitorMaterials {
   shirt: Material;

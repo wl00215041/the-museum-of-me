@@ -48,7 +48,7 @@ export function createStageMaterials(): StageMaterials {
     pedestal: std(0x2a2a2a, 0.7),
     pillarDark: std(0x1a1a1a, 0.9),
     pillarLight: std(0xc4c3bf, 0.9),
-    sculpture: std(0xa8a8a8, 0.85, { flatShading: true }),
+    sculpture: std(0x6e6e6e, 0.85, { flatShading: true }),
   };
   const nodeLine = new LineBasicMaterial({ color: 0x9aa7b8, transparent: true, opacity: 0.5 });
   const starLine = new LineBasicMaterial({ color: 0x3b6fb6, transparent: true, opacity: 0.35 });
