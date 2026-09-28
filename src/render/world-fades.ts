@@ -1,6 +1,6 @@
 import { findSegment } from '../plan/sequence';
 import type { Sequence } from '../types';
-import { smoothstep } from '../util/math';
+import { lerp, smoothstep } from '../util/math';
 
 export interface Fade {
   white: boolean;
@@ -22,4 +22,9 @@ export function worldFadeAt(sequence: Sequence, t: number): Fade {
   }
   amount = Math.max(amount, smoothstep(sequence.total - 1.2, sequence.total, t));
   return { white: false, amount };
+}
+
+/** N8AO strength for a bloom level: strong in the white rooms, soft where things glow — continuous (review I3). */
+export function aoIntensityFor(glow: number): number {
+  return lerp(2.2, 1.0, smoothstep(0.2, 1.1, glow));
 }
