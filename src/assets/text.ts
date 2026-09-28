@@ -192,6 +192,26 @@ export function rasterizeLines(lines: string[], cols: number, rows: number, fami
   return mask;
 }
 
+/** One word, centred inside a thin frame, as a cols × rows LED mask (the highlight box, original 79 s). */
+export function rasterizeHighlight(word: string, cols: number, rows: number, family: FontFamily = 'grotesk', weight = 800): Uint8Array {
+  const canvas = document.createElement('canvas');
+  canvas.width = cols;
+  canvas.height = rows;
+  const ctx = context2d(canvas);
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(2, 2, cols - 4, rows - 4);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `${weight} ${Math.floor(rows * 0.6)}px ${FAMILY_STACKS[family]}`;
+  ctx.fillText(word.toUpperCase(), cols / 2, rows / 2, cols - 16);
+  const data = ctx.getImageData(0, 0, cols, rows).data;
+  const mask = new Uint8Array(cols * rows);
+  for (let i = 0; i < mask.length; i++) mask[i] = data[i * 4 + 3] > 110 ? 255 : 0;
+  return mask;
+}
+
 export function createCanvasTextureFactory(): StageTextureFactory {
   return { text, glow, lightbox, colorBars, concrete };
 }
