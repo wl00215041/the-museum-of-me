@@ -21,6 +21,8 @@ export interface ProjectInput {
   resolution: Resolution;
   musicStyle: MusicStyle;
   music: File | null;
+  /** Photo indices (into `photos`) per scene, in scene order; empty or missing scenes use the default choice. */
+  scenes?: Partial<Scenes>;
 }
 
 export type LengthMode = 'auto' | 30 | 60 | 90 | 120 | 'music';
@@ -46,3 +48,10 @@ export interface Sequence {
   total: number;
   segments: Segment[];
 }
+
+export type SceneId = 'friends' | 'photos' | 'location' | 'tvs' | 'grid' | 'videos' | 'floaters';
+
+/** In film order. */
+export const SCENE_IDS: readonly SceneId[] = ['friends', 'photos', 'location', 'tvs', 'grid', 'videos', 'floaters'];
+
+export type Scenes = Record<SceneId, number[]>;
