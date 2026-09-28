@@ -14,6 +14,8 @@ interface PhotoEntry {
   caption: string;
   preview: ImageBitmap | null;
   requested: boolean;
+  /** The file could not be decoded: never requested again, shown as broken everywhere. */
+  failed?: boolean;
 }
 
 const PREVIEW_EDGE = 160;
@@ -83,7 +85,8 @@ export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSub
     draw(id, canvas) {
       const entry = entries.find((e) => e.id === id);
       if (!entry) return;
-      if (entry.preview) drawCover(canvas, entry.preview);
+      if (entry.failed) canvas.parentElement?.classList.add('broken');
+      else if (entry.preview) drawCover(canvas, entry.preview);
       else requestPreview(entry);
     },
     dragged: () => dragId,
@@ -114,7 +117,7 @@ export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSub
   }
 
   function requestPreview(entry: PhotoEntry): void {
-    if (entry.requested) return;
+    if (entry.requested || entry.failed) return;
     entry.requested = true;
     previews.thumb(entry.file, PREVIEW_EDGE).then(
       ({ bitmap }) => {
@@ -124,9 +127,13 @@ export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSub
       (err: Error) => {
         entry.requested = false;
         const tile = tileOf(entry.id);
-        if (!tile) return;
-        if (err.message.includes('disposed')) observer.observe(tile);
-        else tile.classList.add('broken');
+        if (err.message.includes('disposed')) {
+          if (tile) observer.observe(tile);
+          return;
+        }
+        entry.failed = true;
+        tile?.classList.add('broken');
+        board.repaint(entry.id);
       },
     );
   }
@@ -163,6 +170,7 @@ export function mountSetupForm(root: HTMLElement, previews: PreviewSource, onSub
     tile.dataset.id = String(entry.id);
     if (entry.id === portraitId) tile.append(el('span', { className: 'badge' }, '主視覺'));
     if (entry.id === selectedId) tile.classList.add('selected');
+    if (entry.failed) tile.classList.add('broken');
     tile.addEventListener('click', () => {
       selectedId = entry.id;
       render();

@@ -104,11 +104,24 @@ export function mountSceneBoard(
       sceneDrag = { scene, id };
     });
     li.addEventListener('dragend', () => { sceneDrag = null; });
-    li.addEventListener('dragover', (ev) => ev.preventDefault());
+    li.addEventListener('dragover', (ev) => { if (o.dragged() !== null || sceneDrag) ev.preventDefault(); });
     li.addEventListener('drop', (ev) => drop(scene, id, ev));
-    o.draw(id, canvas);
     return li;
   }
+
+  // Tiles are drawn when they scroll into view, so a large board does not queue every preview at once (review I2).
+  const visible = new IntersectionObserver(
+    (records) => {
+      for (const record of records) {
+        if (!record.isIntersecting) continue;
+        const li = record.target as HTMLLIElement;
+        visible.unobserve(li);
+        li.dataset.drawn = '1';
+        o.draw(Number(li.dataset.id), li.querySelector('canvas')!);
+      }
+    },
+    { rootMargin: '200px' },
+  );
 
   function render(): void {
     const head = document.createElement('div');
@@ -160,7 +173,9 @@ export function mountSceneBoard(
       });
       return section;
     });
+    visible.disconnect();
     root.replaceChildren(head, hint, ...sections);
+    for (const li of root.querySelectorAll<HTMLLIElement>('.scene-tile')) visible.observe(li);
   }
 
   return {
@@ -189,7 +204,7 @@ export function mountSceneBoard(
       return Object.fromEntries(SCENE_IDS.map((id) => [id, [...scenes[id]]])) as Record<SceneId, number[]>;
     },
     repaint(id) {
-      for (const canvas of root.querySelectorAll<HTMLCanvasElement>(`.scene-tile[data-id="${id}"] canvas`)) o.draw(id, canvas);
+      for (const canvas of root.querySelectorAll<HTMLCanvasElement>(`.scene-tile[data-id="${id}"][data-drawn="1"] canvas`)) o.draw(id, canvas);
     },
   };
 }

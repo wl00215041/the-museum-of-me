@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { DEFAULT_PHOTOS, fixture } from './helpers';
 
 const scene = (page: Page, id: string) => page.locator(`.scene[data-scene="${id}"]`);
@@ -82,8 +83,30 @@ test('scenes not in the chosen length are greyed out', async ({ page }) => {
 });
 
 test('music length mode greys out nothing', async ({ page }) => {
+  // Start from a length that greys some scenes, so the switch to music length has something to undo.
+  await page.selectOption('#duration', '30');
+  await expect(page.locator('.scene.unavailable')).not.toHaveCount(0);
   await page.selectOption('#music-style', 'upload');
   await page.setInputFiles('#music', fixture('tone-5s.wav'));
   await page.selectOption('#duration', 'music');
   await expect(page.locator('.scene.unavailable')).toHaveCount(0);
+});
+
+test('scene thumbnails load only when they scroll into view', async ({ page }) => {
+  const bytes = DEFAULT_PHOTOS.map((n) => readFileSync(fixture(n)));
+  await page.setInputFiles('#photo-input', Array.from({ length: 150 }, (_, i) => ({ name: `m${i}.jpg`, mimeType: 'image/jpeg', buffer: bytes[i % bytes.length] })));
+  await expect(page.locator('.photo-tile')).toHaveCount(155);
+  const last = scene(page, 'floaters').locator('.scene-tile').last();
+  await page.waitForTimeout(1500);
+  await expect(last).not.toHaveAttribute('data-drawn', '1');
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toHaveAttribute('data-drawn', '1');
+});
+
+test('an unreadable photo is marked broken in the scenes too', async ({ page }) => {
+  await page.setInputFiles('#photo-input', [fixture('not-an-image.jpg')]);
+  await expect(page.locator('.photo-tile')).toHaveCount(6);
+  const tile = scene(page, 'photos').locator('.scene-tile[title="not-an-image.jpg"]');
+  await tile.scrollIntoViewIfNeeded();
+  await expect(tile).toHaveClass(/broken/);
 });

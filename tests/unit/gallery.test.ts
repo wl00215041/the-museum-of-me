@@ -123,8 +123,18 @@ describe('computeGallery', () => {
     const large = g.robots.floaters.filter((f) => f.size >= 0.8).map((f) => f.photoIndex);
     expect(large.length).toBeGreaterThan(0);
     for (const i of large) expect([15, 16, 17, 18, 19, 14, 10]).toContain(i);
-    for (const f of g.robots.floaters.filter((x) => x.size < 0.8)) expect([1, 2]).toContain(f.photoIndex);
+    // A short list: every assigned photo also floats (the first 7 are the large pass-bys).
+    for (const f of g.robots.floaters.filter((x) => x.size < 0.8)) expect(scenes.floaters).toContain(f.photoIndex);
     for (const i of [5, 3, 9, 7, 2, 13, ...large]) expect(g.featured).toContain(i);
+  });
+
+  it('keeps the floating photos varied for small archives with the default scenes', () => {
+    for (const n of [8, 10, 15]) {
+      const sequence = buildSequence({ photoCount: n, lengthMode: 'auto', musicDuration: null });
+      const g = computeGallery({ sequence, aspects: Array.from({ length: n }, () => 1.5), portraitIndex: 0, seed: 7 });
+      const small = new Set(g.robots.floaters.filter((f) => f.size < 0.8).map((f) => f.photoIndex));
+      expect(small.size, `n=${n}`).toBe(n);
+    }
   });
 
   it('rotates grid photos beyond the first 30 into the grid over time', () => {

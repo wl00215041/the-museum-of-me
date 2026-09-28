@@ -412,7 +412,8 @@ export function computeGallery(input: GalleryInput): Gallery {
   const overPlatform = (q: Vec3) => Math.abs(q[0] - px) < P.width / 2 + 1.5 && Math.abs(q[2] - pz) < P.depth / 2 + 1.5 && q[1] < 5.5;
   // The assigned list: its first ROBOTS.large photos are the large ones by the camera, the rest float around the room.
   const F = S.floaters;
-  const smallPool = F.length > ROBOTS.large ? F.slice(ROBOTS.large) : F;
+  // Only a long list keeps the large ones out of the rest; a short one lets every photo float (review I1).
+  const smallPool = F.length >= ROBOTS.large * 3 ? F.slice(ROBOTS.large) : F;
   let smallNext = 0;
   let largeNext = 0;
   const floaters: Gallery['robots']['floaters'] = [];
