@@ -8,18 +8,19 @@ import { networkLayout, photoSwarm, pickSpread, shuffle, spot, type CanvasItem, 
 
 /** White-wall lettering, sized for the measured distances (spec v4 §1; tuned in Task 11). */
 export const TEXT = {
-  titleWidth: 4.2, titleHeight: 1.2, titleY: 1.35,
-  exhibitionWidth: 5.6, exhibitionHeight: 1.6, exhibitionY: 1.2,
-  introTextWidth: 5.4, introHeight: 1.1, introY: 1.35, avatar: 0.62,
+  titleWidth: 4.2, titleHeight: 1.2, titleY: 1.5,
+  exhibitionWidth: 5.6, exhibitionHeight: 1.9, exhibitionY: 1.55,
+  introTextWidth: 5.4, introHeight: 1.1, introY: 1.6, avatar: 0.62,
   gap: 0.8, endMargin: 1,
 } as const;
 export const WALL_HEIGHT = { white: 7, dark: 6, robots: 10 } as const;
 export const LABEL_Y = 1.75;
 export const CARPET = { cols: 64, rows: 36, pitch: 0.15, tile: 0.14 } as const;
-export const ROBOTS = { platform: { width: 10, depth: 6, height: 0.35 }, back: 8, halfWidth: 16, front: 6, liftY: 3, floaters: 280 } as const;
+export const ROBOTS = { platform: { width: 10, depth: 6, height: 0.35 }, back: 8, halfWidth: 16, front: 6, liftY: 3, floaters: 200, armScale: 1.4 } as const;
 export const HALL = {
-  crt: { count: 7, from: -2.2, pitch: 1.0, y: 1.35, z: 1.6, width: 0.46, height: 0.34 },
-  grid: { cols: 6, rows: 5, pitchX: 0.7, pitchY: 0.52, width: 0.62, height: 0.46, bottom: 1.0, step: 1.6 },
+  crt: { count: 7, from: -3.5, pitch: 1.1, y: 1.35, z: 1.6, width: 0.46, height: 0.34 },
+  /** The photo grid hangs on the grid wall's west part, next to the Videos corner. */
+  grid: { cols: 6, rows: 5, pitchX: 0.7, pitchY: 0.52, width: 0.62, height: 0.46, bottom: 1.0, step: 1.6, offset: -2.8 },
   videos: { cols: 4, rows: 3, width: 2, height: 1.2, gap: 0.06, y: 2.2 },
 } as const;
 
@@ -233,8 +234,9 @@ export function computeGallery(input: GalleryInput): Gallery {
     const k = Math.min(12, n, Math.max(1, Math.floor((xb - xa) / 1.7) + 1));
     const indices = pickSpread(n, k);
     portraits = {
-      items: indices.map((photoIndex, i) => ({ photoIndex, center: [k === 1 ? (xa + xb) / 2 : lerp(xa, xb, i / (k - 1)), 1.85, 0], width: 1.15, height: 1.15 })),
-      visitors: [spot([xAt(at(portraitsSeg, 0.62)) + 0.6, 0, 1.2], 0, rnd), spot([xAt(at(portraitsSeg, 0.8)) + 1.8, 0, 1.0], 1, rnd)],
+      items: indices.map((photoIndex, i) => ({ photoIndex, center: [k === 1 ? (xa + xb) / 2 : lerp(xa, xb, i / (k - 1)), 2.03, 0], width: 1.15, height: 1.15 })),
+      // One visitor stands close to the lens, cut by the frame (original 32–34 s); one at the wall.
+      visitors: [spot([xAt(at(portraitsSeg, 0.62)) + 0.8, 0, 4.4], 0, rnd), spot([xAt(at(portraitsSeg, 0.8)) + 1.8, 0, 1.0], 1, rnd)],
     };
   }
 
@@ -243,7 +245,7 @@ export function computeGallery(input: GalleryInput): Gallery {
   const swarmB = Math.max(swarmA + 4, wallEnd - 0.8);
   const passer = track.pose(at(photosSeg, 0.55)).pos;
   const photos: Gallery['photos'] = {
-    items: photoSwarm(aspects, swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.3, 4.6]),
+    items: photoSwarm(aspects, swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.5, 5.3]),
     visitors: [
       spot([lerp(swarmA, swarmB, 0.25), 0, 1.2], 0, rnd),
       spot([lerp(swarmA, swarmB, 0.55), 0, 1.6], 2, rnd),
@@ -260,8 +262,12 @@ export function computeGallery(input: GalleryInput): Gallery {
     const D = A.dark;
     const recess = A.words?.recess ?? ([D.x0 + 14, D.x0 + 14] as [number, number]);
     const front: Frame = { origin: [0, 0, D.wallZ], yaw: 0 };
-    walls.push({ name: 'white-end', frame: { origin: [D.x0, 0, 0], yaw: Math.PI / 2 }, center: [D.wallZ / 2, WALL_HEIGHT.white / 2], width: D.wallZ, height: WALL_HEIGHT.white, dark: false, region: 'walk' });
-    walls.push({ name: 'location-wall', frame: front, center: [(D.x0 + recess[0]) / 2, WALL_HEIGHT.dark / 2], width: recess[0] - D.x0, height: WALL_HEIGHT.dark, dark: true, region: 'walk' });
+    // The partition between Photos and the dark rooms runs from the white wall to the dark pillar: white on the Photos side, dark beyond (original 51–56 s).
+    const half = 0.25;
+    const front0 = A.darkPillar ? A.darkPillar[2] - half : D.wallZ;
+    walls.push({ name: 'white-end', frame: { origin: [D.x0 - half, 0, 0], yaw: Math.PI / 2 }, center: [front0 / 2, WALL_HEIGHT.white / 2], width: front0, height: WALL_HEIGHT.white, dark: false, region: 'walk' });
+    if (front0 > D.wallZ) walls.push({ name: 'dark-side', frame: { origin: [D.x0 + half, 0, D.wallZ], yaw: -Math.PI / 2 }, center: [-(front0 - D.wallZ) / 2, WALL_HEIGHT.dark / 2], width: front0 - D.wallZ, height: WALL_HEIGHT.dark, dark: true, region: 'walk' });
+    walls.push({ name: 'location-wall', frame: front, center: [(D.x0 + half + recess[0]) / 2, WALL_HEIGHT.dark / 2], width: recess[0] - D.x0 - half, height: WALL_HEIGHT.dark, dark: true, region: 'walk' });
     floors.push({ name: 'dark-floor', frame: IDENTITY, center: [D.x0 + 60, -20], width: 120, depth: 80, dark: true, region: 'walk' });
     if (moments) {
       labels.push({ text: 'Location', number: String(++section), frame: front, at: [D.x0 + 1.5, LABEL_Y, 0.01], dark: true });
@@ -317,7 +323,7 @@ export function computeGallery(input: GalleryInput): Gallery {
     const cells: GridCell[] = [];
     for (let r = 0; r < G.rows; r++) {
       for (let c = 0; c < G.cols; c++) {
-        cells.push({ col: c, row: r, center: [(c - (G.cols - 1) / 2) * G.pitchX, G.bottom + (G.rows - 1 - r) * G.pitchY, 0.02], width: G.width, height: G.height, photos: [pool[(r * G.cols + c) % n]] });
+        cells.push({ col: c, row: r, center: [G.offset + (c - (G.cols - 1) / 2) * G.pitchX, G.bottom + (G.rows - 1 - r) * G.pitchY, 0.02], width: G.width, height: G.height, photos: [pool[(r * G.cols + c) % n]] });
       }
     }
     let next = cells.length;
@@ -326,7 +332,7 @@ export function computeGallery(input: GalleryInput): Gallery {
       const changed = new Set([(k * 7 + 3) % cells.length, ...(k % 2 === 0 ? [(k * 11 + 5) % cells.length] : [])]);
       cells.forEach((cell, i) => cell.photos.push(changed.has(i) ? pool[next++ % n] : cell.photos[k - 1]));
     }
-    labels.push({ text: 'Photos', number: `${no}.2`, frame: Hh.gridWall, at: [(G.cols * G.pitchX) / 2 + 0.7, LABEL_Y, 0.01], dark: true });
+    labels.push({ text: 'Photos', number: `${no}.2`, frame: Hh.gridWall, at: [G.offset + (G.cols * G.pitchX) / 2 + 0.7, LABEL_Y, 0.01], dark: true });
 
     const Vd = HALL.videos;
     const panels: NonNullable<Gallery['hall']>['videos']['panels'] = [];
@@ -361,15 +367,16 @@ export function computeGallery(input: GalleryInput): Gallery {
 
   const platformCenter: Vec3 = [px, P.height / 2, pz];
   // The last arm stands left of the dive so the camera brushes past it (original 152 s).
-  const armSpots = [[-6.2, 0.6, 0], [6.2, 0.2, 1.7], [-3.6, -4.2, 3.1], [3.6, -4.0, 4.6], [-1.9, 5.4, 2.3]] as const;
+  const armSpots = [[-6.2, 0.6, 0], [6.2, 0.2, 1.7], [-3.6, -4.2, 3.1], [3.6, -4.0, 4.6], [-3.4, 4.8, 2.3]] as const;
   const arms = armSpots.map(([dx, dz, phase]) => ({ pos: [px + dx, 0, pz + dz] as Vec3, yaw: Math.atan2(-dx, -dz), phase }));
   for (const arm of arms) {
-    const reach: Vec3 = [arm.pos[0] + Math.sin(arm.yaw) * 2.4, 0, arm.pos[2] + Math.cos(arm.yaw) * 2.4];
+    const k = ROBOTS.armScale;
+    const reach: Vec3 = [arm.pos[0] + Math.sin(arm.yaw) * 2.4 * k, 0, arm.pos[2] + Math.cos(arm.yaw) * 2.4 * k];
     obstacles.push({
       name: 'arm',
       frame: F2,
-      min: [Math.min(arm.pos[0], reach[0]) - 0.7, 0, Math.min(arm.pos[2], reach[2]) - 0.7],
-      max: [Math.max(arm.pos[0], reach[0]) + 0.7, 3.1, Math.max(arm.pos[2], reach[2]) + 0.7],
+      min: [Math.min(arm.pos[0], reach[0]) - 0.7 * k, 0, Math.min(arm.pos[2], reach[2]) - 0.7 * k],
+      max: [Math.max(arm.pos[0], reach[0]) + 0.7 * k, 3.1 * k, Math.max(arm.pos[2], reach[2]) + 0.7 * k],
       region: 'robots',
     });
   }
@@ -380,7 +387,7 @@ export function computeGallery(input: GalleryInput): Gallery {
   const floaters = Array.from({ length: ROBOTS.floaters }, () => ({
     photoIndex: Math.floor(rnd() * n),
     pos: [px + lerp(-12, 12, rnd()), lerp(1.2, 5.5, rnd()), lerp(zBack + 0.5, zBack + 6, rnd())] as Vec3,
-    size: lerp(0.16, 0.34, rnd()),
+    size: lerp(0.2, 0.45, rnd()),
     phase: rnd() * Math.PI * 2,
   }));
 

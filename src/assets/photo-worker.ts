@@ -83,9 +83,11 @@ async function handle(req: WorkerRequest): Promise<[WorkerResult, Transferable[]
       ctx.fillStyle = '#050505';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       const radius = dot * 0.36;
-      const trace = (lit: boolean) => {
-        ctx.beginPath();
+      // One path per row: a single path with every dot of the wall (~250k arcs) is silently dropped by the canvas.
+      const fillDots = (lit: boolean, style: string) => {
+        ctx.fillStyle = style;
         for (let y = 0; y < rows; y++) {
+          ctx.beginPath();
           for (let x = 0; x < cols; x++) {
             if (mask[y * cols + x] > 0 !== lit) continue;
             const cx = (x + 0.5) * dot;
@@ -93,14 +95,11 @@ async function handle(req: WorkerRequest): Promise<[WorkerResult, Transferable[]
             ctx.moveTo(cx + radius, cy);
             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
           }
+          ctx.fill();
         }
       };
-      trace(false);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.07)';
-      ctx.fill();
-      trace(true);
-      ctx.fillStyle = '#ffffff';
-      ctx.fill();
+      fillDots(false, 'rgba(255, 255, 255, 0.07)');
+      fillDots(true, '#ffffff');
       const bitmap = canvas.transferToImageBitmap();
       return [{ type: 'led', bitmap }, [bitmap]];
     }

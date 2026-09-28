@@ -40,7 +40,7 @@ export function createStageMaterials(): StageMaterials {
     wall: std(0xd9d8d4, 0.95),
     floor: std(0xcfccc5, 0.5),
     skirting: std(0xd9d7d1, 0.8),
-    darkFloor: std(0x101010, 0.4, { metalness: 0.15 }),
+    darkFloor: std(0x101010, 0.7, { metalness: 0.15 }),
     darkWall: std(0x161616, 1),
     blockSide: std(0x2b2b2b, 0.8),
     plaque: std(0xf7f7f5, 0.9),

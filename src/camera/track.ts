@@ -33,7 +33,7 @@ export const TRACK = {
     d: [[0, 10.9], [0.1, 10.5], [0.24, 9.0], [0.41, 7.4], [0.59, 6.4], [0.76, 4.7], [0.86, 3.6], [0.97, 2.8], [1, 2.7]],
     /** Sideways speed in m/s at the original pace, by fraction. */
     drift: [[0, 1.1], [0.1, 0.45], [0.24, 0.35], [0.3, 0.15], [0.76, 0.13], [0.86, 0.45], [1, 0.6]],
-    ledWidth: 10,
+    ledWidth: 8,
     ledHeight: 3.6,
     ledY: 2.0,
     /** The LED wall's right end, past the camera x at the end of Words. */
@@ -46,21 +46,23 @@ export const TRACK = {
     turnEnd: 0.1,
     r0: 8.7,
     r1: 6,
-    orbit: deg(130),
+    /** The camera spirals in less than the walls' reference radius (original zoom over 95–112 s: ×1.33). */
+    r1Camera: 8,
+    orbit: deg(160),
     lookOffset: deg(30),
-    videosWall: 9.7,
-    videosHalfWidth: 5.0,
-    gridTurn: deg(50),
-    gridLength: 7,
-    likesTurn: deg(100),
+    videosWall: 11,
+    videosHalfWidth: 6.5,
+    gridTurn: deg(90),
+    gridLength: 13,
+    likesTurn: deg(120),
     likesLength: 16,
     orbitEndWithVideos: 0.4,
-    orbitEndWithoutVideos: 0.75,
+    orbitEndWithoutVideos: 0.8,
   },
-  truck: { videos: 0.75, ramp: 1.5 },
+  truck: { videos: 0.5, ramp: 1.5 },
   /** Wide enough to cover the whole frame at 1.6 m, so the robot room can be swapped in behind it. */
   door: { gap: 1.6, width: 2.2 },
-  robots: { dStart: 12.6, dEnd: 8, eye: 1.6, eyeBlend: 0.1, approachFrom: 0.1, settle: 1.0 },
+  robots: { dStart: 17, dEnd: 11, eye: 1.6, eyeBlend: 0.1, approachFrom: 0.1, settle: 1.0 },
   sample: 0.25,
 } as const;
 
@@ -205,7 +207,8 @@ export function computeTrack(sequence: Sequence, V: number): Track {
   });
   const pe = poseAt(photos.end);
   const hasDark = !!(moments || words);
-  const whiteWallEnd = hasDark ? pe.pos[0] + TRACK.dark.wallEndPastCamera : white.xAt(robots.start) + 20;
+  // With dark rooms the white wall ends at the dark pillar (set below); without them it runs past the robot door.
+  let whiteWallEnd = white.xAt(robots.start) + 20;
 
   // Location: hold, then move in on the shallow wall (original 53–63 s).
   if (moments) {
@@ -232,6 +235,7 @@ export function computeTrack(sequence: Sequence, V: number): Track {
 
   // Words: walk almost straight up to the LED wall in its recess (original 63–92 s).
   let wordsAnchor: TrackAnchors['words'] = null;
+  let wordsPlan: { xEnd: number; zLed: number } | null = null;
   if (words) {
     const w = words;
     const W = TRACK.words;
@@ -257,10 +261,25 @@ export function computeTrack(sequence: Sequence, V: number): Track {
         };
       },
     });
-    // Keep the recess clear of the white wall's end when Words follows Photos directly (60 s cut).
-    const cx = Math.max(s0.pos[0] + x.at(w.end) + W.rightMargin - W.ledWidth / 2, whiteWallEnd + TRACK.dark.wallEndPastCamera + W.recessMargin + W.ledWidth / 2);
+    wordsPlan = { xEnd: s0.pos[0] + x.at(w.end), zLed };
+  }
+
+  // The dark pillar after Photos is the front end of the partition between the white wall and the dark rooms (original 53–55 s).
+  let darkPillar: Vec3 | null = null;
+  let tPillar = 0;
+  const next = moments ?? words;
+  if (next) {
+    tPillar = next.start + TRACK.darkPillar.after / pace(next);
+    const p = poseAt(tPillar);
+    darkPillar = [p.pos[0], 0, p.pos[2] - TRACK.darkPillar.gap];
+    whiteWallEnd = p.pos[0];
+  }
+  if (wordsPlan) {
+    const W = TRACK.words;
+    // Keep the recess clear of the partition when Words follows Photos directly (60 s cut).
+    const cx = Math.max(wordsPlan.xEnd + W.rightMargin - W.ledWidth / 2, whiteWallEnd + TRACK.dark.wallEndPastCamera + W.recessMargin + W.ledWidth / 2);
     const right = cx + W.ledWidth / 2;
-    wordsAnchor = { center: [cx, W.ledY, zLed], width: W.ledWidth, height: W.ledHeight, recess: [cx - W.ledWidth / 2 - W.recessMargin, right + W.recessMargin] };
+    wordsAnchor = { center: [cx, W.ledY, wordsPlan.zLed], width: W.ledWidth, height: W.ledHeight, recess: [cx - W.ledWidth / 2 - W.recessMargin, right + W.recessMargin] };
   }
 
   // The hall: turn right off the LED wall, orbit the thumb, truck along the Videos wall (original 92–122 s).
@@ -288,7 +307,7 @@ export function computeTrack(sequence: Sequence, V: number): Track {
     const orbit = (t: number): WalkPose => {
       const e = smoothstep(tTurn, tOrbitEnd, t);
       const phi = H0.turn - H0.orbit * e;
-      const r = lerp(H0.r0, H0.r1, e);
+      const r = lerp(H0.r0, H0.r1Camera, e);
       const p = sub(thumb, scale(dirOf(phi), r));
       return { pos: [p[0], s0.pos[1], p[2]], yaw: phi + H0.lookOffset * e, focus: lerp(r, H0.videosWall, e) };
     };
@@ -300,7 +319,9 @@ export function computeTrack(sequence: Sequence, V: number): Track {
     const truck = integral((t) => vT * smoothstep(tOrbitEnd, tOrbitEnd + TRACK.truck.ramp, t), tOrbitEnd, robots.start);
     regions.push({ start: tOrbitEnd, end: robots.start, pose: (t) => ({ pos: add(last.pos, scale(rightOf(vy), truck.at(t))), yaw: vy, focus: H0.videosWall }) });
     // Walls in a chain: Videos wall, the grid wall turned 50° at its right end, then the Likes wall.
-    const videosOrigin = add([last.pos[0], 0, last.pos[2]], scale(dirOf(vy), H0.videosWall));
+    // The walls are laid out from the reference end point at r1, whatever the camera's own radius.
+    const ref = sub(thumb, scale(dirOf(H0.turn - H0.orbit), H0.r1));
+    const videosOrigin = add([ref[0], 0, ref[2]], scale(dirOf(vy), H0.videosWall));
     const videosRight = add(videosOrigin, scale(rightOf(vy), H0.videosHalfWidth));
     const gy = vy + H0.gridTurn;
     const gridFar = add(videosRight, scale(rightOf(gy), H0.gridLength));
@@ -351,14 +372,7 @@ export function computeTrack(sequence: Sequence, V: number): Track {
     whiteBlock = { x0: white.blockX0, x1: white.blockX0 + TRACK.whiteBlock.width, depth: white.distanceAt(tb) - TRACK.whiteBlock.gap };
     addWipe('white-block', tb, TRACK.whiteBlock.width / 2, TRACK.whiteBlock.gap, V);
   }
-  let darkPillar: Vec3 | null = null;
-  const next = moments ?? words;
-  if (next) {
-    const tp = next.start + TRACK.darkPillar.after / pace(next);
-    const p = poseAt(tp);
-    darkPillar = [p.pos[0], 0, p.pos[2] - TRACK.darkPillar.gap];
-    addWipe('dark-pillar', tp, TRACK.darkPillar.width / 2, TRACK.darkPillar.gap, velBefore(tp)[0]);
-  }
+  if (darkPillar) addWipe('dark-pillar', tPillar, TRACK.darkPillar.width / 2, TRACK.darkPillar.gap, velBefore(tPillar)[0]);
   addWipe('robot-door', t0, TRACK.door.width / 2, TRACK.door.gap, vLat);
 
   // Smooth the piecewise walk: samples every 0.25 s plus every region edge, with their exact derivatives.

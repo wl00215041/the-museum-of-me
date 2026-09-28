@@ -1,4 +1,4 @@
-import { BoxGeometry, Group, Mesh } from 'three';
+import { Group } from 'three';
 import type { StageTextureFactory } from '../../assets/texture-factory';
 import { placeIn } from '../frame';
 import type { Label } from '../gallery';
@@ -22,8 +22,8 @@ const BLURBS: Record<string, string> = {
   Videos: 'Moving pictures.',
 };
 
-/** Section sign: icon, name, one line of description and the number (dark rooms use white lettering). */
-export function createLabel(tex: StageTextureFactory, label: Label, mats: StageMaterials): Group {
+/** Section sign printed on the wall: icon, name, one line of description and the number (dark rooms use white lettering). */
+export function createLabel(tex: StageTextureFactory, label: Label): Group {
   const outer = placeIn(label.frame, new Group());
   outer.name = `label:${label.text}`;
   const inner = new Group();
@@ -47,11 +47,6 @@ export function createLabel(tex: StageTextureFactory, label: Label, mats: StageM
   );
   text.position.z = 0.016;
   inner.add(text);
-  if (!label.dark) {
-    const backing = new Mesh(new BoxGeometry(LABEL_SIZE.width + 0.04, LABEL_SIZE.height + 0.04, 0.015), mats.plaque);
-    backing.position.z = 0.0075;
-    inner.add(backing);
-  }
   outer.add(inner);
   return outer;
 }
@@ -59,7 +54,7 @@ export function createLabel(tex: StageTextureFactory, label: Label, mats: StageM
 export function buildLabels(ctx: GalleryContext): Group {
   const group = new Group();
   group.name = 'labels';
-  for (const label of ctx.gallery.labels) group.add(createLabel(ctx.tex, label, ctx.mats));
+  for (const label of ctx.gallery.labels) group.add(createLabel(ctx.tex, label));
   return group;
 }
 

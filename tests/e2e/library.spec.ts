@@ -100,3 +100,26 @@ test('disposing the pool rejects pending work', async ({ page }) => {
   expect(r.rejected).toBe(30);
   expect(r.reason).toContain('disposed');
 });
+
+test('draws every lit LED dot even at the v4 wall size (1280 × 192 dots)', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const w = window as AnyWindow;
+    const pool = w.__pool.createPhotoPool(1);
+    const cols = 1280;
+    const rows = 192;
+    const bitmap: ImageBitmap = await pool.led(new Uint8Array(cols * rows).fill(255), cols, rows, 3);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(bitmap, 0, 0);
+    const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 4) sum += d[i];
+    pool.dispose();
+    return { width: canvas.width, mean: sum / (d.length / 4) };
+  });
+  expect(r.width).toBe(3840);
+  // Each dot covers ~40 % of its 3 × 3 cell: an all-lit wall averages far above the #050505 ground.
+  expect(r.mean).toBeGreaterThan(60);
+});

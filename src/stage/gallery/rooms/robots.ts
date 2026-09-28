@@ -1,6 +1,7 @@
 import { BoxGeometry, DoubleSide, Euler, Group, Matrix4, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3, type InstancedMesh } from 'three';
 import { requireSegment } from '../../../plan/sequence';
 import { placeIn } from '../../frame';
+import { ROBOTS } from '../../gallery';
 import type { Gallery } from '../../gallery';
 import { buildAtlasInstances, cellTexture, type AtlasInstance } from '../../parts/atlas-mesh';
 import { armAngles, createRobotArm } from '../../parts/robot-arm';
@@ -47,6 +48,7 @@ export function buildRobotsRoom(ctx: GalleryContext): RoomObject {
     const arm = createRobotArm(mats.robot, held);
     arm.group.position.set(spec.pos[0], spec.pos[1], spec.pos[2]);
     arm.group.rotation.y = spec.yaw;
+    arm.group.scale.setScalar(ROBOTS.armScale);
     group.add(arm.group);
     return { arm, phase: spec.phase };
   });
