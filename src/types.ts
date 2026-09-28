@@ -1,9 +1,3 @@
-export type SceneId = 'opening' | 'hall' | 'corridor' | 'gallery' | 'keywords' | 'network' | 'finale';
-
-export const SCENE_ORDER: readonly SceneId[] = ['opening', 'hall', 'corridor', 'gallery', 'keywords', 'network', 'finale'];
-
-export type DurationMode = 'auto' | 30 | 60 | 90 | 120;
-
 export type Resolution = '720p' | '1080p';
 
 export const RESOLUTIONS: Record<Resolution, { width: number; height: number; bitrate: number }> = {
@@ -14,24 +8,6 @@ export const RESOLUTIONS: Record<Resolution, { width: number; height: number; bi
 export const FPS = 30;
 
 export type Vec3 = [number, number, number];
-
-export interface SceneSpan {
-  id: SceneId;
-  start: number;
-  end: number;
-}
-
-export interface GalleryStop {
-  start: number;
-  end: number;
-  photoIndices: number[];
-}
-
-export interface Timeline {
-  total: number;
-  scenes: SceneSpan[];
-  galleryStops: GalleryStop[];
-}
 
 export interface ProjectInput {
   photos: File[];

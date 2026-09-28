@@ -1,10 +1,10 @@
 import './ui/styles.css';
 import { buildProject, type Project } from './app/project';
-import { createPhotoPool } from './assets/photo-pool';
+import { createPhotoPool, type PhotoPool } from './assets/photo-pool';
 import { exportVideo, type ExportProgress } from './export/exporter';
 import { exportFilename } from './export/filename';
 import { createPlayer, type Player } from './preview/player';
-import { createRenderer, type MuseumRenderer } from './render/renderer';
+import { createStageRenderer, type MuseumRenderer } from './render/stage-renderer';
 import { FPS, RESOLUTIONS } from './types';
 import { mountSetupForm } from './ui/setup-form';
 import { formatTime } from './util/format';
@@ -30,6 +30,7 @@ const cancelButton = byId<HTMLButtonElement>('cancel-export');
 const stageStatus = byId('stage-status');
 const busy = byId('busy');
 const busyLabel = byId('busy-label');
+const busyCancel = byId<HTMLButtonElement>('busy-cancel');
 const setupErrors = byId('setup-errors');
 
 interface Session {
@@ -39,7 +40,9 @@ interface Session {
   player: Player;
 }
 
-const pool = createPhotoPool();
+let pool: PhotoPool = createPhotoPool();
+/** Bumped by every new build and by cancel; a finishing build that is no longer current is discarded. */
+let buildGeneration = 0;
 let session: Session | null = null;
 let exporting: AbortController | null = null;
 
@@ -67,8 +70,8 @@ function openStage(project: Project): void {
   viewport.replaceChildren(canvas);
   setup.hidden = true;
   stage.hidden = false;
-  const total = project.timeline.total;
-  const renderer = createRenderer({ canvas, museum: project.museum, camera: project.camera, total, endCard: project.endCard });
+  const total = project.storyboard.total;
+  const renderer = createStageRenderer({ canvas, stage: project.stage, camera: project.camera, storyboard: project.storyboard });
   const player = createPlayer({ render: renderer.renderFrame, audio: project.soundtrack, total, onTick: onTick(total) });
   session = { project, canvas, renderer, player };
   scrub.max = String(total);
@@ -129,7 +132,7 @@ async function runExport(s: Session): Promise<void> {
   s.renderer.setSize(width, height);
   try {
     const result = await exportVideo({
-      canvas: s.canvas, renderFrame: s.renderer.renderFrame, total: s.project.timeline.total, fps: FPS,
+      canvas: s.canvas, renderFrame: s.renderer.renderFrame, total: s.project.storyboard.total, fps: FPS,
       width, height, bitrate, audio: s.project.soundtrack, signal: controller.signal, onProgress: showProgress,
     });
     download(result.blob, exportFilename(s.project.input.name, new Date(), result.extension));
@@ -146,19 +149,35 @@ async function runExport(s: Session): Promise<void> {
   }
 }
 
-mountSetupForm(setup, pool, async (input) => {
-  showBusy('正在布置展廳…');
+mountSetupForm(setup, { thumb: (file, maxEdge) => pool.thumb(file, maxEdge) }, async (input) => {
+  const generation = ++buildGeneration;
   setupErrors.textContent = '';
+  showBusy('正在布置展廳…');
   try {
-    openStage(await buildProject(input, showBusy));
+    const project = await buildProject(input, pool, (message) => {
+      if (generation === buildGeneration) showBusy(message);
+    });
+    if (generation !== buildGeneration) {
+      project.dispose();
+      return;
+    }
+    openStage(project);
   } catch (err) {
+    if (generation !== buildGeneration) return;
     closeStage();
     setupErrors.textContent = err instanceof Error ? err.message : String(err);
   } finally {
-    busy.hidden = true;
+    if (generation === buildGeneration) busy.hidden = true;
   }
 });
 
+busyCancel.addEventListener('click', () => {
+  buildGeneration++;
+  pool.dispose();
+  pool = createPhotoPool();
+  busy.hidden = true;
+  closeStage();
+});
 playButton.addEventListener('click', () => session?.player.toggle());
 scrub.addEventListener('input', () => session?.player.seek(Number(scrub.value)));
 backButton.addEventListener('click', closeStage);
