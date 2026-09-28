@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
+import { computeTrack } from '../../src/camera/track';
 import { buildSequence, requireSegment } from '../../src/plan/sequence';
+import { gallerySpeed } from '../../src/stage/gallery';
 import type { SegmentId } from '../../src/types';
 import { fillSetup } from './helpers';
 
@@ -62,14 +64,16 @@ test('the walk is one take: no sudden change of the whole picture between rooms'
   test.setTimeout(10 * 60_000);
   await fillSetup(page, { name: 'Tim Sparke', duration: 'auto', resolution: '720p' });
   const sequence = sequenceFor();
-  const roomStarts = (['portraits', 'photos', 'moments', 'words', 'likes', 'videos', 'robots'] as const).map((id) => requireSegment(sequence, id).start);
+  // Only the three wipes and the LED screen's own content switches may change the whole picture (spec v4 §8).
+  const track = computeTrack(sequence, gallerySpeed(sequence));
+  const excused: [number, number][] = [...track.wipes.map((w): [number, number] => [w.start - 0.5, w.end + 0.5]), ...track.ledSwitches.map((s): [number, number] => [s - 0.8, s + 0.8])];
   const end = requireSegment(sequence, 'network').end - 3;
   let previous: number | null = null;
   const jumps: string[] = [];
   for (let t = 1.5; t < end; t += 0.5) {
     // Mean, not median: the median of a bright shape shrinking on black flips as coverage crosses 50%, even when the picture is continuous.
     const { mean } = await frameStats(page, t);
-    const nearBoundary = roomStarts.some((s) => Math.abs(t - s) < 1.3);
+    const nearBoundary = excused.some(([a, b]) => t >= a && t <= b);
     if (previous !== null && !nearBoundary && Math.abs(mean - previous) >= 60) jumps.push(`t=${t}: ${previous} → ${mean}`);
     previous = mean;
   }

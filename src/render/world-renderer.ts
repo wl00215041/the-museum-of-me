@@ -4,11 +4,11 @@ import {
 } from 'postprocessing';
 import { HalfFloatType, NoToneMapping, PMREMGenerator, PerspectiveCamera, SRGBColorSpace, WebGLRenderer } from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import type { CameraPath } from '../camera/path';
-import { EXPOSURE, type World } from '../stage/world/world';
+import type { CameraPath } from '../camera/gallery-path';
+import { EXPOSURE, type GalleryWorld as World } from '../stage/gallery/world';
 import { FPS, type Sequence } from '../types';
 import { GradeEffect } from './grade-effect';
-import { worldFadeAt } from './world-fades';
+import { aoIntensityFor, worldFadeAt } from './world-fades';
 
 export interface MuseumRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -89,7 +89,7 @@ export function createWorldRenderer(o: WorldRendererOptions): MuseumRenderer {
     dof.cocMaterial.focusDistance = pose.focus;
     const glow = o.world.bloomAt(t, pose.pos[0]);
     bloom.intensity = glow;
-    ao.configuration.intensity = glow > 0.6 ? 1.0 : 2.2;
+    ao.configuration.intensity = aoIntensityFor(glow);
     grade.setState(worldFadeAt(o.sequence, t), Math.round(t * FPS));
     composer.render(1 / FPS);
   }
