@@ -94,3 +94,21 @@ test('probeAudioDuration reads the length of uploaded music', async ({ page }) =
   }, b64('tone-5s.wav'));
   expect(seconds).toBeCloseTo(5, 1);
 });
+
+test('synthesizes a 137 s airy soundtrack within 6 s', async ({ page }) => {
+  test.setTimeout(120_000);
+  const r = await page.evaluate(async () => {
+    const m = (window as AnyWindow).__soundtrack;
+    const started = performance.now();
+    const buf: AudioBuffer = await m.synthesizeSoundtrack(137, 11, 'airy');
+    const ms = performance.now() - started;
+    const ch = buf.getChannelData(0);
+    let peak = 0;
+    for (let i = 0; i < ch.length; i += 7) peak = Math.max(peak, Math.abs(ch[i]));
+    return { ms, duration: buf.duration, peak };
+  });
+  expect(r.duration).toBeCloseTo(137, 2);
+  expect(r.peak).toBeGreaterThan(0.05);
+  expect(r.peak).toBeLessThan(1);
+  expect(r.ms).toBeLessThan(6000);
+});
