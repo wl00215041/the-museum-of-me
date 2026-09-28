@@ -16,6 +16,8 @@ export interface StageMaterials {
   pedestal: MeshStandardMaterial;
   pillarDark: MeshStandardMaterial;
   pillarLight: MeshStandardMaterial;
+  crtBody: MeshStandardMaterial;
+  crtStand: MeshStandardMaterial;
   sculpture: MeshStandardMaterial;
   robot: { shell: MeshStandardMaterial; joint: MeshStandardMaterial; accent: MeshStandardMaterial };
   visitor: VisitorMaterials;
@@ -48,6 +50,8 @@ export function createStageMaterials(): StageMaterials {
     pedestal: std(0x2a2a2a, 0.7),
     pillarDark: std(0x1a1a1a, 0.9),
     pillarLight: std(0xc4c3bf, 0.9),
+    crtBody: std(0x2b2926, 0.55),
+    crtStand: std(0x111111, 0.6),
     sculpture: std(0x6e6e6e, 0.85, { flatShading: true }),
   };
   const nodeLine = new LineBasicMaterial({ color: 0x9aa7b8, transparent: true, opacity: 0.5 });
