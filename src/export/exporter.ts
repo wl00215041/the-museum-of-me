@@ -3,6 +3,7 @@ import {
   AudioBufferSource, BufferTarget, CanvasSource, Mp4OutputFormat, Output, WebMOutputFormat,
   canEncodeAudio, canEncodeVideo, getFirstEncodableVideoCodec, type AudioCodec, type VideoCodec,
 } from 'mediabunny';
+import { yieldToEventLoop } from './yield';
 
 export const AUDIO_BITRATE = 192_000;
 
@@ -101,7 +102,7 @@ export async function exportVideo(o: ExportOptions): Promise<{ blob: Blob; exten
       await video.add(t, 1 / o.fps);
       const elapsed = (performance.now() - started) / 1000;
       o.onProgress({ frame: i + 1, frames, etaSeconds: i >= 10 ? (elapsed / (i + 1)) * (frames - i - 1) : null });
-      if (i % 10 === 0) await new Promise((resolve) => setTimeout(resolve, 0)); // let the UI repaint
+      if (i % 10 === 0) await yieldToEventLoop(); // let the UI repaint
     }
     await addAudioUntil(Infinity);
     o.signal.throwIfAborted();
