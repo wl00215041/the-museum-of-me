@@ -2,6 +2,10 @@ import type { Vec3 } from '../types';
 import { clamp, lerp } from '../util/math';
 
 export const MAX_NETWORK_NODES = 150;
+/** Photos hung on the Photos wall; more would have to shrink below legibility (the rest appear in the carpet, floaters and network). */
+export const MAX_WALL_PHOTOS = 160;
+/** Gap between layers of overlapping photos, so no two share a plane (z-fighting flickers as the camera moves). */
+export const LAYER_GAP = 0.015;
 /** The original's friend network is dense even for a small archive: photos are reused up to this many nodes. */
 export const MIN_NETWORK_NODES = 120;
 export const STARS = 2400;
@@ -74,7 +78,7 @@ export function photoSwarm(
 ): CanvasItem[] {
   const n = aspects.length;
   const span = xb - xa;
-  const base = clamp(Math.sqrt((span * 1.6) / n) * 0.72, 0.22, 0.95);
+  const base = clamp(Math.sqrt((span * 1.6) / n) * 0.72, 0.45, 0.95);
   const placed: CanvasItem[] = [];
   aspects.forEach((aspect, photoIndex) => {
     const u = (photoIndex + 0.5) / n;
@@ -95,6 +99,12 @@ export function photoSwarm(
         if (overlap === 0) break;
       }
     }
+    // One layer in front of every photo it overlaps.
+    let layer = -1;
+    for (const o of placed) {
+      if (Math.abs(o.center[0] - best[0]) < (o.width + width) / 2 && Math.abs(o.center[1] - best[1]) < (o.height + height) / 2) layer = Math.max(layer, Math.round((o.center[2] - z) / LAYER_GAP));
+    }
+    best[2] = z + (layer + 1) * LAYER_GAP;
     placed.push({ photoIndex, center: best, width, height });
   });
   return placed;
@@ -132,7 +142,7 @@ export function networkLayout(n: number, portraitIndex: number, rnd: () => numbe
   const nodes = picked.map((photoIndex, i) => {
     const r = lerp(3, 11, rnd());
     const [x, y, z] = dirs[i];
-    return { photoIndex, pos: [x * r, y * r, z * r] as Vec3, radius: lerp(0.16, 0.3, rnd()) };
+    return { photoIndex, pos: [x * r, y * r, z * r] as Vec3, radius: lerp(0.3, 0.55, rnd()) };
   });
   const edges: [number, number][] = [];
   const seen = new Set<string>();

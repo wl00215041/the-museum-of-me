@@ -12,7 +12,7 @@ export function buildPhotosRoom(ctx: GalleryContext): RoomObject {
   const group = new Group();
   group.name = 'room:photos';
   const matrix = (item: CanvasItem) =>
-    new Matrix4().compose(new Vector3(item.center[0], item.center[1], BLOCK_DEPTH / 2), new Quaternion(), new Vector3(item.width, item.height, 1));
+    new Matrix4().compose(new Vector3(item.center[0], item.center[1], item.center[2] + BLOCK_DEPTH / 2), new Quaternion(), new Vector3(item.width, item.height, 1));
   for (const mesh of buildAtlasInstances({
     geometry: new BoxGeometry(1, 1, BLOCK_DEPTH),
     library: content.library,

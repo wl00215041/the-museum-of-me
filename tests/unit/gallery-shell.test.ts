@@ -1,6 +1,7 @@
 import { InstancedMesh, Mesh, PlaneGeometry, Vector3, type Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 import { toWorld } from '../../src/stage/frame';
+import { MAX_WALL_PHOTOS } from '../../src/stage/placement';
 import { buildLabels } from '../../src/stage/gallery/common';
 import { buildPhotosRoom } from '../../src/stage/gallery/rooms/photos';
 import { buildPortraitsRoom } from '../../src/stage/gallery/rooms/portraits';
@@ -72,9 +73,10 @@ describe('white rooms', () => {
     expect(named(photos.group, 'visitor')).toHaveLength(ctx.gallery.photos.visitors.length);
   });
 
-  it('the photo swarm spreads more than 256 photos over two atlas meshes', () => {
+  it('the photo swarm of a large archive spans atlas meshes and hangs MAX_WALL_PHOTOS photos', () => {
     const swarm = named(buildPhotosRoom(fakeGalleryContext(300)).group, 'photo-swarm') as InstancedMesh[];
-    expect(swarm.map((m) => m.count)).toEqual([256, 44]);
+    expect(swarm).toHaveLength(2);
+    expect(swarm.reduce((s, m) => s + m.count, 0)).toBe(MAX_WALL_PHOTOS);
   });
 
   it('the 30 s cut has no Friends and no block text', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildSequence, requireSegment } from '../../src/plan/sequence';
-import { worldFadeAt } from '../../src/render/world-fades';
+import { dofScaleAt, worldFadeAt } from '../../src/render/world-fades';
 
 describe('worldFadeAt', () => {
   const s = buildSequence({ photoCount: 20, lengthMode: 'auto', musicDuration: null });
@@ -31,5 +31,12 @@ describe('worldFadeAt', () => {
     const mosaic = requireSegment(short, 'mosaic');
     expect(worldFadeAt(short, mosaic.end - 1e-6).amount).toBeCloseTo(1, 5);
     expect(worldFadeAt(short, (mosaic.start + mosaic.end) / 2).amount).toBe(0);
+  });
+
+  it('keeps the network sharp: depth of field fades out as the network grows, without a jump', () => {
+    const start = network.start;
+    expect(dofScaleAt(s, 30)).toBe(1.5);
+    expect(dofScaleAt(s, start + 0.3 * (network.end - start))).toBeLessThanOrEqual(0.3);
+    for (let t = 0; t < s.total; t += 1 / 30) expect(Math.abs(dofScaleAt(s, t + 1 / 30) - dofScaleAt(s, t))).toBeLessThan(0.05);
   });
 });

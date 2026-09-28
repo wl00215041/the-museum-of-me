@@ -67,7 +67,7 @@ export const TRACK = {
    * Robot room (original 125–157 s): creep in, then orbit the platform to the right while moving in and rising,
    * looking down at the carpet more and more. dStart/dEnd are distances to the platform centre.
    */
-  robots: { dStart: 16, dEnd: 7.5, eye: 1.6, eyeBlend: 0.1, orbitFrom: 0.57, orbit: deg(40), rise: 2.6, creep: 0.1, lookFrom: 1.1, lookTo: 0.45, settle: 1.0 },
+  robots: { dStart: 16, dEnd: 7.5, eye: 1.6, eyeBlend: 0.1, orbitFrom: 0.08, orbit: deg(55), rise: 2.6, creep: 0.1, lookFrom: 1.1, lookTo: 0.45, settle: 1.0 },
   sample: 0.25,
 } as const;
 
@@ -370,8 +370,9 @@ export function computeTrack(sequence: Sequence, V: number): Track {
   const slide = (d: number) => (d <= tClear ? d : tClear + tau * (1 - Math.exp(-(d - tClear) / tau)));
   const slideV = (d: number) => (d <= tClear ? 1 : Math.exp(-(d - tClear) / tau));
   const creep = R.creep * TRACK.speed * pace(robots);
-  const eyeEnd = Math.max(at(robots, R.eyeBlend), t0 + 2);
-  const tO = at(robots, R.orbitFrom);
+  // The orbit begins as soon as the door has slid out of the frame (the door is removed at t0 + tClear + 0.3).
+  const tO = Math.max(at(robots, R.orbitFrom), t0 + tClear + 0.3);
+  const eyeEnd = Math.min(Math.max(at(robots, R.eyeBlend), t0 + 2), tO);
   const T = dive.start - tO;
   const localA = (t: number): Vec3 => [
     vLat * slide(t - t0),
@@ -395,7 +396,7 @@ export function computeTrack(sequence: Sequence, V: number): Track {
       const local = localA(t);
       const pos = toWorld(robotsFrame, local);
       const ahead = add(pos, scale(dirOf(yawR), TRACK.look));
-      const k = smoothstep(Math.max(eyeEnd, tO - 3), tO, t);
+      const k = smoothstep(t0 + 0.3 * (tO - t0), tO, t);
       const target: Vec3 = [lerp(ahead[0], lookAt(R.lookFrom)[0], k), lerp(ahead[1], R.lookFrom, k), lerp(ahead[2], lookAt(R.lookFrom)[2], k)];
       return { pos, yaw: yawR, target, focus: lerp(r0.focus, local[2] - platformZ, smoothstep(t0, eyeEnd, t)) };
     },

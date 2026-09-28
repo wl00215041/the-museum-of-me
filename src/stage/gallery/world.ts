@@ -28,7 +28,7 @@ export interface GalleryWorld {
 
 /** Gallery light level, measured against the original: its white walls sit at ~160 (sRGB), not near white. */
 export const EXPOSURE = 0.35;
-export const BLOOM = { light: 0.2, dark: 1.1, hall: 0.6, mosaic: 0.3, ending: 0.25 } as const;
+export const BLOOM = { light: 0.2, dark: 1.1, hall: 0.6, mosaic: 0.3, network: 0.5, ending: 0.25 } as const;
 
 /** Bloom levels over time: dark rooms glow more, and every change is a ramp (review I3). */
 export function bloomKeys(sequence: Sequence, gallery: Gallery): [number, number][] {
@@ -47,7 +47,7 @@ export function bloomKeys(sequence: Sequence, gallery: Gallery): [number, number
   if (likes) ramp(likes.start, likes.start + 1.5, BLOOM.hall);
   ramp(robots.start - 0.6, robots.start + 0.6, BLOOM.light);
   ramp(dive.end - 0.2 * (dive.end - dive.start), dive.end, BLOOM.mosaic);
-  if (network) ramp(network.start, network.start + Math.max(1.5, 0.12 * (network.end - network.start)), BLOOM.dark);
+  if (network) ramp(network.start, network.start + Math.max(1.5, 0.12 * (network.end - network.start)), BLOOM.network);
   return keys;
 }
 

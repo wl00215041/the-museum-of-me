@@ -4,7 +4,7 @@ import type { Segment, Sequence, Vec3 } from '../types';
 import { clamp, lerp } from '../util/math';
 import { mulberry32 } from '../util/rng';
 import { IDENTITY, child, toLocal, toWorld, type Frame } from './frame';
-import { networkLayout, photoSwarm, pickSpread, shuffle, spot, type CanvasItem, type NetworkLayout, type VisitorSpot } from './placement';
+import { MAX_WALL_PHOTOS, networkLayout, photoSwarm, pickSpread, shuffle, spot, type CanvasItem, type NetworkLayout, type VisitorSpot } from './placement';
 
 /** White-wall lettering, sized for the measured distances (spec v4 §1; tuned in Task 11). */
 export const TEXT = {
@@ -250,9 +250,12 @@ export function computeGallery(input: GalleryInput): Gallery {
   const swarmA = photosLabelX + 1.2;
   const swarmB = Math.max(swarmA + 4, wallEnd - 0.8);
   const passer = track.pose(at(photosSeg, 0.55)).pos;
+  const wallPhotos = n <= MAX_WALL_PHOTOS ? Array.from({ length: n }, (_, i) => i) : pickSpread(n, MAX_WALL_PHOTOS);
   const photos: Gallery['photos'] = {
     // Photos grow along the wall so they stay legible while the camera pulls back (user feedback, v4).
-    items: photoSwarm(aspects, swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.5, 5.3], [0.8, 2.2]),
+    items: wallPhotos.length === n
+      ? photoSwarm(aspects, swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.5, 5.3], [0.8, 2.2])
+      : photoSwarm(wallPhotos.map((i) => aspects[i]), swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.5, 5.3], [0.8, 2.2]).map((item) => ({ ...item, photoIndex: wallPhotos[item.photoIndex] })),
     visitors: [
       spot([lerp(swarmA, swarmB, 0.25), 0, 1.2], 0, rnd),
       spot([lerp(swarmA, swarmB, 0.55), 0, 1.6], 2, rnd),

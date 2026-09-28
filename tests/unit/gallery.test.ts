@@ -3,7 +3,7 @@ import { TRACK } from '../../src/camera/track';
 import { buildSequence, findSegment, requireSegment } from '../../src/plan/sequence';
 import { toLocal, toWorld } from '../../src/stage/frame';
 import { HALL, TEXT, computeGallery, gallerySpeed, type Gallery, type WallQuad } from '../../src/stage/gallery';
-import { MIN_NETWORK_NODES } from '../../src/stage/placement';
+import { MAX_WALL_PHOTOS, MIN_NETWORK_NODES } from '../../src/stage/placement';
 import type { LengthMode, Vec3 } from '../../src/types';
 
 const CUTS: { mode: LengthMode; music: number | null }[] = [
@@ -58,7 +58,7 @@ describe('computeGallery', () => {
     expect(whiteBlocks).toHaveLength(1);
     const blockRight = whiteBlocks[0].center[0] + whiteBlocks[0].size[0] / 2;
     const items = [...gallery.portraits!.items, ...gallery.photos.items];
-    for (const i of items) expect(i.center[2]).toBe(0);
+    for (const i of items) expect(i.center[2] >= 0 && i.center[2] < 0.3).toBe(true);
     const xs = items.map((i) => i.center[0]);
     expect(Math.min(...xs)).toBeGreaterThan(blockRight);
     const between = gallery.blocks.filter((b) => {
@@ -75,6 +75,34 @@ describe('computeGallery', () => {
     const third = Math.floor(items.length / 3);
     const size = (xs: typeof items) => xs.reduce((s, i) => s + Math.max(i.width, i.height), 0) / xs.length;
     expect(size(items.slice(-third))).toBeGreaterThan(1.6 * size(items.slice(0, third)));
+  });
+
+  it('hangs at most MAX_WALL_PHOTOS photos, large enough to read even for big archives', () => {
+    for (const n of [200, 500]) {
+      const items = make(n).gallery.photos.items;
+      expect(items.length).toBe(Math.min(n, MAX_WALL_PHOTOS));
+      const sizes = items.map((i) => Math.max(i.width, i.height)).sort((a, b) => a - b);
+      expect(sizes[sizes.length >> 1], `n=${n}`).toBeGreaterThan(0.6);
+      expect(new Set(items.map((i) => i.photoIndex)).size).toBe(items.length);
+    }
+  });
+
+  it('layers overlapping photos so that no two share a plane (no z-fighting while the camera moves)', () => {
+    for (const n of [20, 200]) {
+      const items = make(n).gallery.photos.items;
+      for (let i = 0; i < items.length; i++) {
+        for (let j = i + 1; j < items.length; j++) {
+          const a = items[i];
+          const b = items[j];
+          const overlap = Math.abs(a.center[0] - b.center[0]) < (a.width + b.width) / 2 && Math.abs(a.center[1] - b.center[1]) < (a.height + b.height) / 2;
+          if (overlap) expect(Math.abs(a.center[2] - b.center[2]), `n=${n} ${i}/${j}`).toBeGreaterThanOrEqual(0.01);
+        }
+      }
+    }
+  });
+
+  it('network photo bubbles are large enough to read', () => {
+    for (const node of make(20).gallery.finale.network.nodes) expect(node.radius).toBeGreaterThanOrEqual(0.3);
   });
 
   it('walls never cross, in every cut', () => {
@@ -119,7 +147,7 @@ describe('computeGallery', () => {
 
   it('500 photos keep every index valid', () => {
     const { gallery } = make(500);
-    expect(gallery.photos.items).toHaveLength(500);
+    expect(gallery.photos.items.length).toBeLessThanOrEqual(MAX_WALL_PHOTOS);
     const all = [...gallery.photos.items.map((i) => i.photoIndex), ...gallery.robots.floaters.map((f) => f.photoIndex), ...gallery.hall!.grid.cells.flatMap((c) => c.photos)];
     for (const i of all) expect(i >= 0 && i < 500).toBe(true);
   });

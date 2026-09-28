@@ -25,6 +25,13 @@ export function worldFadeAt(sequence: Sequence, t: number): Fade {
 }
 
 /** N8AO strength for a bloom level: strong in the white rooms, soft where things glow — continuous (review I3). */
+/** Depth-of-field strength: on through the gallery, fading out as the network grows so every bubble stays sharp. */
+export function dofScaleAt(sequence: Sequence, t: number): number {
+  const network = findSegment(sequence, 'network');
+  if (!network) return 1.5;
+  return 1.5 - 1.3 * smoothstep(network.start, network.start + 0.25 * (network.end - network.start), t);
+}
+
 export function aoIntensityFor(glow: number): number {
   return lerp(2.2, 1.0, smoothstep(0.2, 1.1, glow));
 }

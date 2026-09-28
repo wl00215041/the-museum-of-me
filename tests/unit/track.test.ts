@@ -89,7 +89,7 @@ describe('computeTrack — auto cut, measured on the original', () => {
     expect(Math.abs(dot(moved, dirOf(endYaw)))).toBeLessThan(1e-6);
   });
 
-  it('creeps in, then orbits the platform to the right while moving in and rising, keeping it in view (original 125–157 s)', () => {
+  it('orbits the platform to the right from the moment the door has gone, while moving in and rising, keeping it in view (original 125–157 s)', () => {
     const r = requireSegment(s, 'robots');
     const dive = requireSegment(s, 'dive');
     const F = tr.anchors.robots;
@@ -97,18 +97,21 @@ describe('computeTrack — auto cut, measured on the original', () => {
     const local = (t: number) => toLocal(F, tr.pos.at(t));
     const angle = (t: number) => { const p = local(t); return Math.atan2(p[0] - P[0], p[2] - P[2]); };
     const dist = (t: number) => { const p = local(t); return Math.hypot(p[0] - P[0], p[2] - P[2]); };
-    expect(Math.abs(angle(at(r, 0.45)))).toBeLessThan(0.03);
+    // The orbit starts as soon as the door has slid out of the frame.
+    const door = tr.wipes.find((w) => w.name === 'robot-door')!;
+    expect(Math.abs(angle(door.end))).toBeLessThan(0.05);
+    expect(angle(at(r, 0.45))).toBeGreaterThan(0.25 * TRACK.robots.orbit);
     expect(angle(dive.start)).toBeCloseTo(TRACK.robots.orbit, 1);
     let previous = -Infinity;
-    for (let t = at(r, TRACK.robots.orbitFrom); t <= dive.start; t += 0.25) {
+    for (let t = door.end; t <= dive.start; t += 0.25) {
       expect(angle(t)).toBeGreaterThanOrEqual(previous - 1e-6);
       previous = angle(t);
     }
     expect(dist(dive.start)).toBeCloseTo(TRACK.robots.dEnd, 0);
-    expect(dist(at(r, 0.45))).toBeGreaterThan(TRACK.robots.dStart - 1.5);
+    expect(dist(door.end)).toBeGreaterThan(TRACK.robots.dStart - 1.5);
     expect(tr.pos.at(dive.start)[1]).toBeCloseTo(TRACK.robots.rise, 1);
     // Looking at the platform (horizontally) from the start of the orbit, and down at the carpet by its end.
-    for (let t = at(r, TRACK.robots.orbitFrom); t <= dive.start; t += 0.5) {
+    for (let t = door.end + 1; t <= dive.start; t += 0.5) {
       const p = local(t);
       const q = toLocal(F, tr.target.at(t));
       const off = Math.atan2(q[0] - p[0], q[2] - p[2]) - Math.atan2(P[0] - p[0], P[2] - p[2]);
@@ -117,9 +120,9 @@ describe('computeTrack — auto cut, measured on the original', () => {
     const down = sub(tr.target.at(dive.start), tr.pos.at(dive.start));
     expect(down[1] / length(down)).toBeLessThan(-0.2);
     expect(tr.pose(dive.start).focus).toBeCloseTo(TRACK.robots.dEnd, 0);
-    const door = toLocal(F, tr.anchors.door.origin);
-    expect(door[0]).toBeCloseTo(0, 9);
-    expect(door[2]).toBeCloseTo(-TRACK.door.gap, 9);
+    const doorAt = toLocal(F, tr.anchors.door.origin);
+    expect(doorAt[0]).toBeCloseTo(0, 9);
+    expect(doorAt[2]).toBeCloseTo(-TRACK.door.gap, 9);
   });
 
   it('lists the three wipes in order, with the dark pillar 1.6 m in front of the lens', () => {

@@ -8,7 +8,7 @@ import type { CameraPath } from '../camera/gallery-path';
 import { EXPOSURE, type GalleryWorld as World } from '../stage/gallery/world';
 import { FPS, type Sequence } from '../types';
 import { GradeEffect } from './grade-effect';
-import { aoIntensityFor, worldFadeAt } from './world-fades';
+import { aoIntensityFor, dofScaleAt, worldFadeAt } from './world-fades';
 
 export interface MuseumRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -88,6 +88,7 @@ export function createWorldRenderer(o: WorldRendererOptions): MuseumRenderer {
     camera.position.set(...pose.pos);
     camera.lookAt(...pose.target);
     dof.cocMaterial.focusDistance = pose.focus;
+    dof.bokehScale = dofScaleAt(o.sequence, t);
     const glow = o.world.bloomAt(t, pose.pos[0]);
     bloom.intensity = glow;
     ao.configuration.intensity = aoIntensityFor(glow);
