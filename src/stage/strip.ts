@@ -7,7 +7,7 @@ import { networkLayout, photoSwarm, pickSpread, spot, type CanvasItem, type Netw
 export const LINE = { z: 7, eye: 1.6, lookY: 1.85, fov: 38, baseSpeed: 1.1, yaw0: (18 * Math.PI) / 180 } as const;
 export const TEXT = {
   titleWidth: 5, titleHeight: 1.5, exhibitionWidth: 6.5, exhibitionHeight: 2.6,
-  introTextWidth: 3.6, introHeight: 1.0, avatar: 0.9, gap: 0.8, endMargin: 1,
+  introTextWidth: 6.2, introHeight: 1.75, avatar: 0.75, gap: 0.8, endMargin: 1,
 } as const;
 export const BOUNDARY = { depth: 4.5, lowDepth: 0.8, partition: 0.6, pillarZ: 5.4, pillarWidth: 1.1, pillarDepth: 0.5 } as const;
 export const CARPET = { cols: 64, rows: 36, pitch: 0.15, tile: 0.14 } as const;
@@ -136,7 +136,9 @@ function wallTexts(V: number, times: WallTimes): { wall: Strip['wall']; fits: bo
   let lastRight = exRight;
   if (times.tIntro !== null) {
     const blockW = TEXT.avatar + 0.2 + TEXT.introTextWidth;
-    const blockCenter = Math.max(V * times.tIntro, exRight + TEXT.gap + blockW / 2);
+    // Centred on the camera at tIntro when there is room; otherwise slid left so it still ends before the corner.
+    const latest = V * times.wallEnd - TEXT.endMargin - blockW / 2;
+    const blockCenter = Math.max(Math.min(V * times.tIntro, latest), exRight + TEXT.gap + blockW / 2);
     const left = blockCenter - blockW / 2;
     intro = {
       center: [left + TEXT.avatar + 0.2 + TEXT.introTextWidth / 2, 2.45, 0],
@@ -222,7 +224,7 @@ export function computeStrip(input: StripInput): Strip {
     portraits = {
       label: label('Portraits', String(++sectionNo), pr),
       items: indices.map((photoIndex, i) => ({ photoIndex, center: [indices.length === 1 ? mid : lerp(xa, xb, i / (indices.length - 1)), 1.7, 0], width: 1, height: 1 })),
-      visitors: [spot([mid - 0.8, 0, 2.7], 0, rnd), spot([mid + 0.9, 0, 3.0], 1, rnd)],
+      visitors: [spot([mid - 0.8, 0, 1.4], 0, rnd), spot([mid + 0.9, 0, 1.7], 1, rnd)],
     };
   }
 
@@ -234,9 +236,9 @@ export function computeStrip(input: StripInput): Strip {
     label: label('Photos', String(++sectionNo), ph),
     items: photoSwarm(aspects, swarmA, swarmB, rnd),
     visitors: [
-      spot([lerp(swarmA, swarmB, 0.28), 0, 2.4], 0, rnd),
-      spot([lerp(swarmA, swarmB, 0.55), 0, 3.3], 2, rnd),
-      spot([lerp(swarmA, swarmB, 0.82), 0, 2.8], 1, rnd),
+      spot([lerp(swarmA, swarmB, 0.28), 0, 1.3], 0, rnd),
+      spot([lerp(swarmA, swarmB, 0.55), 0, 1.8], 2, rnd),
+      spot([lerp(swarmA, swarmB, 0.82), 0, 1.5], 1, rnd),
       // Stands right in front of the lens, so parallax sweeps it across the frame (original, 44 s).
       spot([ph.x0 + 0.42 * phLen, 0, 5.9], 0, rnd),
     ],
@@ -257,7 +259,7 @@ export function computeStrip(input: StripInput): Strip {
     moments = {
       label: label('Moments', String(++sectionNo), mo),
       boxes,
-      visitors: [spot([boxes[0].center[0] + 1.4, 0, 2.8], 2, rnd, true), spot([boxes[boxes.length - 1].center[0] - 1.8, 0, 3.2], 0, rnd, true)],
+      visitors: [spot([boxes[0].center[0] + 1.4, 0, 1.6], 2, rnd, true), spot([boxes[boxes.length - 1].center[0] - 1.8, 0, 1.9], 0, rnd, true)],
     };
   }
 
@@ -267,7 +269,7 @@ export function computeStrip(input: StripInput): Strip {
     const mid = (wo.x0 + wo.x1) / 2;
     words = {
       label: label('Words', String(++sectionNo), wo),
-      wall: { center: [mid, 2.9, wo.backZ + 0.01], width: clamp(wo.x1 - wo.x0 - 4, 4, 28), height: 5 },
+      wall: { center: [mid, 2.1, wo.backZ + 0.01], width: clamp(wo.x1 - wo.x0 - 4, 4, 28), height: 3.4 },
       visitors: [spot([mid - 3, 0, -2.2], 0, rnd, true), spot([mid + 4, 0, -2.6], 1, rnd, true)],
     };
   }
@@ -279,10 +281,11 @@ export function computeStrip(input: StripInput): Strip {
     const mid = (li.x0 + li.x1) / 2;
     likesNo = ++sectionNo;
     const monitors: Monitor[] = [];
-    const cols = Math.max(1, Math.min(7, Math.floor((len * 0.55 - 1.2) / 1.12)));
+    // Small, dim monitors in rows at the back, as in the original.
+    const cols = Math.max(1, Math.min(10, Math.floor((len * 0.55 - 1.2) / 0.7)));
     for (let c = 0; c < cols; c++) {
       for (let r = 0; r < 4; r++) {
-        monitors.push({ center: [li.x0 + 1.7 + c * 1.12, 1.21 + r * 0.76, 0.05], normal: [0, 0, 1], width: 1, height: 0.62, bars: (c + r) % 4 === 1, photoIndex: (c * 4 + r) % n });
+        monitors.push({ center: [li.x0 + 1.7 + c * 0.7, 1.15 + r * 0.48, 0.05], normal: [0, 0, 1], width: 0.62, height: 0.4, bars: (c + r) % 4 === 1, photoIndex: (c * 4 + r) % n });
       }
     }
     for (let i = 0; i < 6; i++) {
@@ -310,7 +313,7 @@ export function computeStrip(input: StripInput): Strip {
     const panels = [];
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 4; col++) {
-        panels.push({ col, row, center: [mid + (col - 1.5) * (pw + gap), 2.5 + (1 - row) * (ph2 + gap), 0.01] as Vec3, width: pw, height: ph2 });
+        panels.push({ col, row, center: [mid + (col - 1.5) * (pw + gap), 2.3 + (1 - row) * (ph2 + gap), 0.01] as Vec3, width: pw, height: ph2 });
       }
     }
     const monitors: Monitor[] = [];
@@ -324,7 +327,7 @@ export function computeStrip(input: StripInput): Strip {
       photoIndex: pickSpread(n, 1, 0.61)[0],
       panels,
       monitors,
-      visitors: [spot([mid - 1, 0, 3.2], 0, rnd, true), spot([mid + 0.4, 0, 3.0], 2, rnd, true)],
+      visitors: [spot([mid - 1, 0, 1.8], 0, rnd, true), spot([mid + 0.4, 0, 1.6], 2, rnd, true)],
     };
   }
 

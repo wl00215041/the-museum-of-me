@@ -37,6 +37,7 @@ export function buildCameraPath(sequence: Sequence, strip: Strip): CameraPath {
   const P = strip.robots.platform.center;
   const C = strip.finale.lifted;
   const d = dive.end - dive.start;
+  const m = mosaic.end - mosaic.start;
   const x0 = V * dive.start;
   const z0 = lineZ(sequence, dive.start);
 
@@ -45,18 +46,22 @@ export function buildCameraPath(sequence: Sequence, strip: Strip): CameraPath {
     { t: dive.start + 0.35 * d, value: [P[0] - 2.6, 1.35, P[2] + 3.8] },
     { t: dive.start + 0.7 * d, value: [P[0] - 0.6, 0.95, P[2] + 1.6] },
     { t: dive.end, value: [P[0], 4.2, P[2] + 1.2] },
-    { t: mosaic.end, value: [C[0], 9.5, C[2] + 2.5] },
+    // As in the original: by a third of the mosaic the whole lifted carpet is in frame, then it shrinks away from the lens.
+    { t: mosaic.start + 0.35 * m, value: [C[0], C[1] + 11, C[2] + 7] },
+    { t: mosaic.end, value: [C[0], C[1] + 8.5, C[2] + 5] },
   ];
   const targetKeys: SplineKey[] = [
     { t: dive.start, value: [x0, LINE.lookY, z0 - 10], velocity: [V, 0, 0] },
     { t: dive.start + 0.35 * d, value: [P[0], 0.6, P[2]] },
     { t: dive.start + 0.7 * d, value: [P[0] + 3, 0.4, P[2] - 0.6] },
     { t: dive.end, value: [P[0], 0.4, P[2]] },
+    { t: mosaic.start + 0.35 * m, value: C },
     { t: mosaic.end, value: C },
   ];
   if (network) {
     const n = network.end - network.start;
-    posKeys.push({ t: network.start + 0.5 * n, value: [C[0] + 3, 20, C[2] + 8] }, { t: network.end, value: [C[0], 38, C[2] + 12] });
+    // Through the outer nodes to the star shell (radius ~12), then back until the whole sphere fills the frame.
+    posKeys.push({ t: network.start + 0.5 * n, value: [C[0] + 3, C[1] + 10, C[2] + 7] }, { t: network.end, value: [C[0], C[1] + 22, C[2] + 15.5] });
     targetKeys.push({ t: network.start + 0.5 * n, value: C }, { t: network.end, value: C });
   }
   const pos = createSpline(posKeys);

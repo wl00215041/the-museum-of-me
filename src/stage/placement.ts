@@ -2,6 +2,8 @@ import type { Vec3 } from '../types';
 import { clamp, lerp } from '../util/math';
 
 export const MAX_NETWORK_NODES = 150;
+/** The original's friend network is dense even for a small archive: photos are reused up to this many nodes. */
+export const MIN_NETWORK_NODES = 120;
 export const STARS = 2400;
 
 export interface CanvasItem {
@@ -115,10 +117,15 @@ export function fibonacci(count: number): Vec3[] {
 /** Photo spheres around the portrait, each linked to its two nearest neighbours, inside a star shell. */
 export function networkLayout(n: number, portraitIndex: number, rnd: () => number): NetworkLayout {
   const others = Array.from({ length: n }, (_, i) => i).filter((i) => i !== portraitIndex);
-  const picked = others.length <= MAX_NETWORK_NODES ? others : pickSpread(others.length, MAX_NETWORK_NODES).map((i) => others[i]);
+  const picked =
+    others.length > MAX_NETWORK_NODES
+      ? pickSpread(others.length, MAX_NETWORK_NODES).map((i) => others[i])
+      : others.length === 0
+        ? []
+        : Array.from({ length: Math.max(others.length, MIN_NETWORK_NODES) }, (_, i) => others[i % others.length]);
   const dirs = fibonacci(Math.max(1, picked.length));
   const nodes = picked.map((photoIndex, i) => {
-    const r = lerp(3, 7, rnd());
+    const r = lerp(3, 11, rnd());
     const [x, y, z] = dirs[i];
     return { photoIndex, pos: [x * r, y * r, z * r] as Vec3, radius: lerp(0.16, 0.3, rnd()) };
   });
@@ -141,14 +148,26 @@ export function networkLayout(n: number, portraitIndex: number, rnd: () => numbe
   });
   const stars: number[] = [];
   for (const [x, y, z] of fibonacci(STARS)) {
-    const r = lerp(8, 16, rnd());
+    // A thin shell, so the Fibonacci-neighbour lines read as the original's lattice, not a tangle across depths.
+    const r = lerp(11.5, 12.5, rnd());
     stars.push(x * r, y * r, z * r);
   }
-  const starEdges: [number, number][] = [];
-  for (let i = 0; i < STARS; i += 2) {
-    if (i + 21 < STARS) starEdges.push([i, i + 21]);
-    if (i + 34 < STARS) starEdges.push([i, i + 34]);
-  }
   const highlights = Array.from({ length: Math.ceil(STARS / 60) }, (_, k) => k * 60);
+  // The original's blue lines are a coarse triangle net between the highlight stars.
+  const starAt = (i: number) => stars.slice(i * 3, i * 3 + 3);
+  const starEdges: [number, number][] = [];
+  const seenStar = new Set<string>();
+  for (const a of highlights) {
+    const [ax, ay, az] = starAt(a);
+    highlights
+      .filter((b) => b !== a)
+      .map((b) => { const [bx, by, bz] = starAt(b); return { b, d: Math.hypot(ax - bx, ay - by, az - bz) }; })
+      .sort((p, q) => p.d - q.d)
+      .slice(0, 3)
+      .forEach(({ b }) => {
+        const key = `${Math.min(a, b)}:${Math.max(a, b)}`;
+        if (!seenStar.has(key)) { seenStar.add(key); starEdges.push([Math.min(a, b), Math.max(a, b)]); }
+      });
+  }
   return { nodes, edges, stars, starEdges, highlights };
 }

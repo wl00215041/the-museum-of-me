@@ -13,11 +13,11 @@ export function buildWallRoom(ctx: WorldContext): RoomObject {
   const title = createTextPlane(
     tex.text({
       color: INK,
-      lineGap: 0.5,
+      lineGap: 0.15,
       padding: 20,
       lines: [
-        { text: 'The Museum of Me', px: 120, weight: 500, family: 'serif' },
-        { text: 'Create and explore a visual archive of your social life.', px: 30, weight: 500, spacing: 1 },
+        { text: 'The Museum of Me', px: 120, weight: 700, family: 'serif' },
+        { text: 'Create and explore a visual archive of your social life.', px: 38, weight: 700 },
       ],
     }),
     w.title.width,
@@ -57,8 +57,8 @@ export function buildWallRoom(ctx: WorldContext): RoomObject {
         lineGap: 0.3,
         padding: 16,
         lines: [
-          { text: 'This exhibition is a journey of', px: 64, weight: 500, family: 'serif' },
-          { text: `visualization that explores who ${content.name} is.`, px: 64, weight: 500, family: 'serif' },
+          { text: 'This exhibition is a journey of', px: 64, weight: 700, family: 'serif' },
+          { text: `visualization that explores who ${content.name} is.`, px: 64, weight: 700, family: 'serif' },
         ],
       }),
       w.intro.width,

@@ -1,5 +1,5 @@
 /** LED wall raster: the text mask is cols × rows pixels, each drawn as a dot `dot` px wide. */
-export const LED = { cols: 640, rows: 200, dot: 6, mainRows: 9, mainUnits: 70, highlightRows: 4, highlightUnits: 30 } as const;
+export const LED = { cols: 640, rows: 200, dot: 6, mainRows: 14, mainUnits: 100, highlightRows: 4, highlightUnits: 30 } as const;
 
 /** Width in half-em units: CJK and other wide scripts count 2, everything else 1. */
 export function textUnits(text: string): number {

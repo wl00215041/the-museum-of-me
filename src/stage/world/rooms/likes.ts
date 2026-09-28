@@ -23,7 +23,7 @@ export function buildLikesRoom(ctx: WorldContext): RoomObject | null {
   group.add(pedestal, thumb, spot, spot.target);
 
   const barsMaterial = new MeshBasicMaterial({ map: tex.colorBars() });
-  barsMaterial.color.setScalar(0.75);
+  barsMaterial.color.setScalar(0.55);
   barsMaterial.userData.owned = true;
   barsMaterial.userData.ownsMap = true;
   for (const monitor of l.monitors) {
@@ -32,7 +32,7 @@ export function buildLikesRoom(ctx: WorldContext): RoomObject | null {
     let material = barsMaterial;
     if (!monitor.bars) {
       material = new MeshBasicMaterial({ map: cellTextureCropped(content.library, monitor.photoIndex, monitor.width / monitor.height) });
-      material.color.setScalar(0.75);
+      material.color.setScalar(0.55);
       material.userData.owned = true;
       material.userData.ownsMap = true;
     }

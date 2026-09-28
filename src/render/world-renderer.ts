@@ -5,7 +5,7 @@ import {
 import { HalfFloatType, NoToneMapping, PMREMGenerator, PerspectiveCamera, SRGBColorSpace, WebGLRenderer } from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { CameraPath } from '../camera/path';
-import type { World } from '../stage/world/world';
+import { EXPOSURE, type World } from '../stage/world/world';
 import { FPS, type Sequence } from '../types';
 import { GradeEffect } from './grade-effect';
 import { worldFadeAt } from './world-fades';
@@ -37,7 +37,7 @@ export function createWorldRenderer(o: WorldRendererOptions): MuseumRenderer {
   const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   pmrem.dispose();
   o.world.scene.environment = environment;
-  o.world.scene.environmentIntensity = 0.8;
+  o.world.scene.environmentIntensity = 0.8 * EXPOSURE;
 
   const camera = new PerspectiveCamera(38, 16 / 9, 0.05, 500);
   const composer = new EffectComposer(renderer, { frameBufferType: HalfFloatType });

@@ -135,7 +135,7 @@ export function buildFinale(ctx: WorldContext): RoomObject & { blackoutAt(t: num
     p.name = name;
     return p;
   };
-  const stars = points(net.stars, 0.09, 0xdfe8ff, 'stars');
+  const stars = points(net.stars, 0.16, 0xdfe8ff, 'stars');
   const highlights = points(net.highlights.flatMap(star), 0.28, 0x4aa3ff, 'highlights');
   networkGroup.add(edges, starEdges, stars, highlights);
 

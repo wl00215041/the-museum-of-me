@@ -26,6 +26,8 @@ export interface World {
   dispose(): void;
 }
 
+/** Gallery light level, measured against the original: its white walls sit at ~160 (sRGB), not near white. */
+export const EXPOSURE = 0.35;
 const BLOOM_LIGHT = 0.2;
 const BLOOM_DARK = 1.1;
 const bloomOf = (room: Room) => (room.dark ? BLOOM_DARK : BLOOM_LIGHT);
@@ -35,8 +37,8 @@ export function buildWorld(sequence: Sequence, strip: Strip, content: WorldConte
   const ctx: WorldContext = { sequence, strip, content, tex, mats };
   const scene = new Scene();
   scene.background = new Color(0x000000);
-  scene.add(new HemisphereLight(0xffffff, 0xcfcac2, 1.15));
-  const sun = new DirectionalLight(0xffffff, 0.5);
+  scene.add(new HemisphereLight(0xffffff, 0xcfcac2, 1.15 * EXPOSURE));
+  const sun = new DirectionalLight(0xffffff, 0.5 * EXPOSURE);
   sun.position.set(-20, 30, 40);
   scene.add(sun);
 

@@ -12,7 +12,7 @@ export const FAMILY_STACKS: Record<FontFamily, string> = {
 
 const FONT_FACES = [
   '300 32px "Noto Sans TC"', '500 32px "Noto Sans TC"', '700 32px "Noto Sans TC"',
-  '400 32px "Bodoni Moda"', '500 32px "Bodoni Moda"', '500 32px "Archivo"', '800 32px "Archivo"',
+  '400 32px "Bodoni Moda"', '500 32px "Bodoni Moda"', '700 32px "Bodoni Moda"', '500 32px "Archivo"', '800 32px "Archivo"',
 ];
 
 /** Loads every family (and the unicode-range subsets `texts` needs) before canvases are drawn. */

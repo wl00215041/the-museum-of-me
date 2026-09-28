@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildSequence, requireSegment } from '../../src/plan/sequence';
 import { BOUNDARY, CARPET, LINE, TEXT, computeStrip, roomAtX, yawAt, type Strip } from '../../src/stage/strip';
 import type { LengthMode } from '../../src/types';
+import { MIN_NETWORK_NODES } from '../../src/stage/placement';
 
 const aspectsFor = (n: number) => Array.from({ length: n }, (_, i) => [1.5, 0.75, 1, 1.78, 0.5][i % 5]);
 
@@ -96,7 +97,9 @@ describe('computeStrip', () => {
     const { strip } = make(3);
     expect(strip.moments!.boxes.length).toBeGreaterThanOrEqual(4);
     expect(strip.portraits!.items.length).toBeGreaterThan(0);
-    expect(strip.finale.network.nodes).toHaveLength(2);
+    // The original's friend network is a dense constellation: few photos are reused, never the portrait.
+    expect(strip.finale.network.nodes).toHaveLength(MIN_NETWORK_NODES);
+    for (const node of strip.finale.network.nodes) expect(node.photoIndex).not.toBe(strip.portraitIndex);
     expect(allFinite(strip)).toBe(true);
   });
 
