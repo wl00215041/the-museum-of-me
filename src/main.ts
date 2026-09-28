@@ -52,7 +52,8 @@ function showBusy(message: string): void {
 }
 
 function fitPreview(s: Session): void {
-  const width = Math.max(320, Math.min(960, Math.round(s.canvas.clientWidth * devicePixelRatio)));
+  // One rendered pixel per device pixel, so high-DPI screens do not stretch (and blur) the preview.
+  const width = Math.max(320, Math.min(1920, Math.round(s.canvas.clientWidth * devicePixelRatio)));
   s.renderer.setSize(width, Math.round((width * 9) / 16));
 }
 

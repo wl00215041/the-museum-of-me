@@ -39,6 +39,12 @@ describe('worldFadeAt', () => {
     for (let t = robots.start + 3; t < dive.start; t += 0.5) expect(dofScaleAt(s, t)).toBeLessThanOrEqual(0.6);
   });
 
+  it('keeps the hall walls readable behind the thumb: weak depth of field from Likes to the robot room', () => {
+    const likes = requireSegment(s, 'likes');
+    const robots = requireSegment(s, 'robots');
+    for (let t = likes.start; t < robots.start; t += 0.5) expect(dofScaleAt(s, t), `t=${t}`).toBeLessThanOrEqual(0.4);
+  });
+
   it('keeps the network sharp: depth of field fades out as the network grows, without a jump', () => {
     const start = network.start;
     expect(dofScaleAt(s, 30)).toBe(1.5);

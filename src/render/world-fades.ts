@@ -26,14 +26,16 @@ export function worldFadeAt(sequence: Sequence, t: number): Fade {
 
 /** N8AO strength for a bloom level: strong in the white rooms, soft where things glow — continuous (review I3). */
 /**
- * Depth-of-field strength: full through the gallery, weak from the robot room on so the floating photos stay sharp,
- * and nearly off once the network has grown so every bubble can be read.
+ * Depth-of-field strength: full through the gallery, weak in the hall so the walls behind the thumb stay readable,
+ * weak in the robot room so the floating photos stay sharp, and nearly off once the network has grown.
  */
 export function dofScaleAt(sequence: Sequence, t: number): number {
+  const likes = findSegment(sequence, 'likes');
   const robots = findSegment(sequence, 'robots');
   const network = findSegment(sequence, 'network');
   let s = 1.5;
-  if (robots) s -= 1.0 * smoothstep(robots.start, robots.start + 2, t);
+  if (likes) s = lerp(s, 0.4, smoothstep(likes.start - 2, likes.start, t));
+  if (robots) s = lerp(s, 0.5, smoothstep(robots.start, robots.start + 2, t));
   if (network) s -= 0.3 * smoothstep(network.start, network.start + 0.25 * (network.end - network.start), t);
   return s;
 }

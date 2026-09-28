@@ -1,6 +1,6 @@
 import { N8AOPostPass } from 'n8ao';
 import {
-  BloomEffect, DepthOfFieldEffect, EffectComposer, EffectPass, RenderPass, SMAAEffect, SMAAPreset, ToneMappingEffect, ToneMappingMode, VignetteEffect,
+  BloomEffect, DepthOfFieldEffect, EffectComposer, EffectPass, RenderPass, ToneMappingEffect, ToneMappingMode, VignetteEffect,
 } from 'postprocessing';
 import { HalfFloatType, NoToneMapping, PMREMGenerator, PerspectiveCamera, SRGBColorSpace, WebGLRenderer } from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -40,7 +40,8 @@ export function createWorldRenderer(o: WorldRendererOptions): MuseumRenderer {
   o.world.scene.environmentIntensity = 0.8 * EXPOSURE;
 
   const camera = new PerspectiveCamera(38, 16 / 9, 0.05, 500);
-  const composer = new EffectComposer(renderer, { frameBufferType: HalfFloatType });
+  // MSAA smooths geometry edges only; SMAA's colour edge detection also smeared the detail inside every photo.
+  const composer = new EffectComposer(renderer, { frameBufferType: HalfFloatType, multisampling: 4 });
   composer.addPass(new RenderPass(o.world.scene, camera));
   const ao = new N8AOPostPass(o.world.scene, camera, 1280, 720);
   ao.configuration.aoRadius = 1.0;
@@ -59,7 +60,6 @@ export function createWorldRenderer(o: WorldRendererOptions): MuseumRenderer {
   composer.addPass(
     new EffectPass(
       camera,
-      new SMAAEffect({ preset: SMAAPreset.HIGH }),
       dof,
       bloom,
       new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
