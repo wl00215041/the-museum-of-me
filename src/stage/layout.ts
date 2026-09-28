@@ -187,7 +187,7 @@ function wallLayout(storyboard: Storyboard, aspects: number[], portraitIndex: nu
   const n = aspects.length;
   const title: WallText = { center: [titleX(), 2.75, 0], width: WALL_TEXT.titleWidth, height: WALL_TEXT.titleHeight };
   const exhibitionX = cameraX(run, run.exhibitionTime);
-  const exhibition: WallText = { center: [exhibitionX, 2.8, 0], width: WALL_TEXT.exhibitionWidth, height: WALL_TEXT.exhibitionHeight };
+  const exhibition: WallText = { center: [exhibitionX, 2.35, 0], width: WALL_TEXT.exhibitionWidth, height: WALL_TEXT.exhibitionHeight };
   const exRight = exhibitionX + WALL_TEXT.exhibitionWidth / 2;
   const visitors: VisitorSpot[] = [];
 

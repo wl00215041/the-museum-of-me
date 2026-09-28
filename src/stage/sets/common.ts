@@ -19,13 +19,13 @@ export function darkScene(): Scene {
   return scene;
 }
 
-/** Dark reflective floor in front of z = 0 and a black back wall just behind it. */
-export function addDarkRoom(scene: Scene, mats: StageMaterials, width: number, depth: number): void {
+/** Dark reflective floor in front of z = 0 and a black back wall at backZ. */
+export function addDarkRoom(scene: Scene, mats: StageMaterials, width: number, depth: number, backZ = -0.4): void {
   const floor = new Mesh(new PlaneGeometry(width, depth), mats.darkFloor);
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(0, 0, depth / 2 - 1);
   const back = new Mesh(new PlaneGeometry(width, 9), mats.darkWall);
-  back.position.set(0, 4.5, -0.4);
+  back.position.set(0, 4.5, backZ);
   scene.add(floor, back);
 }
 

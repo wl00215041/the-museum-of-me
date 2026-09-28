@@ -105,7 +105,7 @@ export function createStageRenderer(o: StageRendererOptions): MuseumRenderer {
     }
     camera.position.set(...pose.pos);
     camera.lookAt(...pose.target);
-    bloom.intensity = set.dark ? 1.1 : 0.2;
+    bloom.intensity = set.bloom ?? (set.dark ? 1.1 : 0.2);
     ao.configuration.intensity = set.dark ? 1.0 : 2.2;
     grade.setState(fadeAt(o.storyboard, t), Math.round(t * FPS));
     composer.render(1 / FPS);

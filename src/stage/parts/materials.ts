@@ -44,7 +44,7 @@ export function createStageMaterials(): StageMaterials {
     lightboxFrame: std(0x151515, 0.6),
     monitorBody: std(0x101010, 0.5),
     pedestal: std(0x2a2a2a, 0.7),
-    sculpture: std(0x8f8f8f, 0.85, { flatShading: true }),
+    sculpture: std(0xa8a8a8, 0.85, { flatShading: true }),
   };
   const nodeLine = new LineBasicMaterial({ color: 0x9aa7b8, transparent: true, opacity: 0.5 });
   const starLine = new LineBasicMaterial({ color: 0x3b6fb6, transparent: true, opacity: 0.35 });

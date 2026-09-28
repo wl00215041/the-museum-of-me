@@ -47,6 +47,7 @@ export function buildEndingSet(ctx: SetContext, ids: ShotId[]): StageSet {
     ids,
     scene,
     dark: true,
+    bloom: 0.25, // the end card stays crisp, as in the original
     update(t) {
       const u = localU(span, t);
       const a = smoothstep(0, 0.35, u);

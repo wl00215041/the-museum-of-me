@@ -33,6 +33,8 @@ export interface StageSet {
   scene: Scene;
   /** Dark rooms get stronger bloom and softer AO. */
   dark: boolean;
+  /** Overrides the bloom intensity implied by `dark`. */
+  bloom?: number;
   update(t: number): void;
   dispose(): void;
 }

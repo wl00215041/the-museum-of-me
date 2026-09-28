@@ -6,7 +6,7 @@ export const WALL = {
   speed: 1.5,
   yaw0: (28 * Math.PI) / 180,
   eye: 1.6,
-  lookY: 1.9,
+  lookY: 2.3,
   height: 6,
   fov: 38,
 } as const;
@@ -19,7 +19,7 @@ export const WALL_TEXT = {
   introHeight: 1.2,
   avatar: 0.9,
   exhibitionWidth: 10,
-  exhibitionHeight: 3.2,
+  exhibitionHeight: 2.6,
   gap: 0.8,
 } as const;
 
