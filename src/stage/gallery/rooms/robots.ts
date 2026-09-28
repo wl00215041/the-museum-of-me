@@ -10,7 +10,8 @@ import type { GalleryContext, RoomObject } from '../context';
 type Floater = Gallery['robots']['floaters'][number];
 
 function floaterMatrix(f: Floater, t: number): Matrix4 {
-  const q = new Quaternion().setFromEuler(new Euler(0.2 * Math.sin(0.3 * t + f.phase), f.phase + 0.1 * t, 0));
+  // Facing the room's entrance, turning a little (the original's photos mostly face the camera).
+  const q = new Quaternion().setFromEuler(new Euler(0.12 * Math.sin(0.3 * t + f.phase), 0.45 * Math.sin(f.phase) + 0.12 * Math.sin(0.2 * t + f.phase), 0));
   return new Matrix4().compose(new Vector3(f.pos[0], f.pos[1] + 0.15 * Math.sin(0.4 * t + f.phase), f.pos[2]), q, new Vector3(f.size, f.size, 1));
 }
 
@@ -43,7 +44,8 @@ export function buildRobotsRoom(ctx: GalleryContext): RoomObject {
     const heldMaterial = new MeshBasicMaterial({ map: cellTexture(lib, r.floaters[i % r.floaters.length].photoIndex, 'square'), side: DoubleSide });
     heldMaterial.userData.owned = true;
     heldMaterial.userData.ownsMap = true;
-    const held = new Mesh(new PlaneGeometry(0.28, 0.28), heldMaterial);
+    const held = new Mesh(new PlaneGeometry(0.5, 0.5), heldMaterial);
+    held.name = 'held-photo';
     held.rotation.x = -Math.PI / 2;
     const arm = createRobotArm(mats.robot, held);
     arm.group.position.set(spec.pos[0], spec.pos[1], spec.pos[2]);

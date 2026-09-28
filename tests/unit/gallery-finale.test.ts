@@ -1,4 +1,4 @@
-import { Color, InstancedMesh, LineBasicMaterial, LineSegments, Matrix4, Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
+import { BufferGeometry, Color, InstancedMesh, LineBasicMaterial, LineSegments, Matrix4, Mesh, MeshBasicMaterial, PlaneGeometry, Points, Quaternion, Vector3, type Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 import { findSegment, requireSegment } from '../../src/plan/sequence';
 import { aoIntensityFor } from '../../src/render/world-fades';
@@ -27,6 +27,12 @@ describe('robot room', () => {
     const a = grip();
     room.update!(robots.start + 6);
     expect(grip()).not.toEqual(a);
+  });
+  it('arms hold large photos (original 149–152 s)', () => {
+    const room = buildRobotsRoom(fakeGalleryContext(20));
+    const held = named(room.group, 'held-photo') as Mesh<PlaneGeometry>[];
+    expect(held).toHaveLength(5);
+    for (const h of held) expect(h.geometry.parameters.width).toBeGreaterThanOrEqual(0.45);
   });
 });
 
@@ -88,6 +94,65 @@ describe('finale', () => {
     finale.group.traverse((o) => { if (o instanceof LineSegments) lines.push(o); });
     expect(lines.length).toBeGreaterThan(0);
     for (const l of lines) expect((l.material as LineBasicMaterial).depthWrite).toBe(false);
+  });
+
+  it('lays the carpet photos unevenly, some propped up, and settles them flat and square as it lifts', () => {
+    const ctx = fakeGalleryContext(20);
+    const finale = buildFinale(ctx);
+    const dive = requireSegment(ctx.sequence, 'dive');
+    const mosaic = requireSegment(ctx.sequence, 'mosaic');
+    const [tiles] = named(finale.group, 'carpet-tiles') as InstancedMesh[];
+    const [carpet] = named(finale.group, 'carpet');
+    const m = new Matrix4();
+    const p = new Vector3();
+    const q = new Quaternion();
+    const s = new Vector3();
+    const tilts = () => Array.from({ length: tiles.count }, (_, i) => {
+      tiles.getMatrixAt(i, m);
+      m.decompose(p, q, s);
+      return { tilt: 2 * Math.acos(Math.min(1, Math.abs(q.w))), y: p.y };
+    });
+    finale.update!(dive.start);
+    const before = tilts();
+    const propped = before.filter((x) => x.tilt > 0.25).length / before.length;
+    expect(propped).toBeGreaterThan(0.04);
+    expect(propped).toBeLessThan(0.15);
+    const ys = before.map((x) => x.y);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(0.02);
+    expect(carpet.rotation.y).toBeCloseTo(ctx.gallery.finale.carpetYaw, 9);
+    finale.update!(mosaic.start + 0.5 * (mosaic.end - mosaic.start));
+    for (const x of tilts()) {
+      expect(x.tilt).toBeLessThan(1e-6);
+      expect(x.y).toBeCloseTo(0, 9);
+    }
+    finale.update!(dive.start);
+    expect(tilts()).toEqual(before);
+  });
+
+  it('shoots spokes out of the portrait first; each bubble appears as its spoke arrives, the web comes after', () => {
+    const ctx = fakeGalleryContext(30);
+    const finale = buildFinale(ctx);
+    const network = findSegment(ctx.sequence, 'network')!;
+    const at = (u: number) => network.start + u * (network.end - network.start);
+    const [spokes] = named(finale.group, 'network-spokes') as LineSegments<BufferGeometry, LineBasicMaterial>[];
+    const [web] = named(finale.group, 'network-edges') as LineSegments<BufferGeometry, LineBasicMaterial>[];
+    const [nodes] = named(finale.group, 'network-nodes') as InstancedMesh[];
+    expect(named(finale.group, 'network-sparks')[0]).toBeInstanceOf(Points);
+    const net = ctx.gallery.finale.network;
+    const first = net.edges.find(([a]) => a === -1)![1];
+    const end = () => { const a = spokes.geometry.getAttribute('position'); return new Vector3(a.getX(1), a.getY(1), a.getZ(1)); };
+    const scaleOf = (i: number) => { const m = new Matrix4(); nodes.getMatrixAt(i, m); return new Vector3().setFromMatrixScale(m).x; };
+    const full = new Vector3(...net.nodes[first].pos);
+    finale.update!(at(0.03));
+    expect(end().length()).toBeGreaterThan(0);
+    expect(end().length()).toBeLessThan(full.length());
+    expect(scaleOf(first)).toBe(0);
+    expect(web.material.opacity).toBe(0);
+    finale.update!(at(0.3));
+    expect(end().distanceTo(full)).toBeLessThan(1e-6);
+    expect(scaleOf(first)).toBeGreaterThan(0);
+    finale.update!(at(0.6));
+    expect(web.material.opacity).toBeGreaterThan(0);
   });
 
   it('fades the end card in', () => {

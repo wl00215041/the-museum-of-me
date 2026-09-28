@@ -63,7 +63,11 @@ export const TRACK = {
   truck: { videos: 0.4, ramp: 1.5, doorBoost: 0.45, doorRamp: 3 },
   /** Wide enough to cover the whole frame at 1.6 m, so the robot room can be swapped in behind it. */
   door: { gap: 1.6, width: 2.2 },
-  robots: { dStart: 17, dEnd: 11, eye: 1.6, eyeBlend: 0.1, approachFrom: 0.1, settle: 1.0 },
+  /**
+   * Robot room (original 125–157 s): creep in, then orbit the platform to the right while moving in and rising,
+   * looking down at the carpet more and more. dStart/dEnd are distances to the platform centre.
+   */
+  robots: { dStart: 16, dEnd: 7.5, eye: 1.6, eyeBlend: 0.1, orbitFrom: 0.57, orbit: deg(40), rise: 2.6, creep: 0.1, lookFrom: 1.1, lookTo: 0.45, settle: 1.0 },
   sample: 0.25,
 } as const;
 
@@ -72,6 +76,8 @@ export interface WalkPose {
   yaw: number;
   /** Distance to what the original keeps sharp: the wall ahead, the thumb, the platform. */
   focus: number;
+  /** Explicit look target; otherwise TRACK.look metres ahead along the yaw, at eye height. */
+  target?: Vec3;
 }
 
 export interface Wipe {
@@ -103,6 +109,8 @@ export interface TrackAnchors {
   /** Camera x (robot frame) once the sideways motion has died out. */
   settle: number;
   platformZ: number;
+  /** Platform centre on the floor, in the robot frame. */
+  platform: Vec3;
 }
 
 export interface Track {
@@ -346,7 +354,7 @@ export function computeTrack(sequence: Sequence, V: number): Track {
     };
   }
 
-  // Robot room: coast sideways to a stop, then go straight at the platform (original 122–150 s).
+  // Robot room: slide past the door, settle and creep in, then orbit the platform (original 122–157 s).
   const t0 = robots.start;
   const r0 = poseAt(t0);
   const v0 = velBefore(t0);
@@ -360,17 +368,47 @@ export function computeTrack(sequence: Sequence, V: number): Track {
   const clear = TRACK.door.width / 2 + TRACK.door.gap * HALF_HFOV_TAN + 0.2;
   const tClear = clear / Math.max(Math.abs(vLat), 0.2);
   const slide = (d: number) => (d <= tClear ? d : tClear + tau * (1 - Math.exp(-(d - tClear) / tau)));
-  const tA = at(robots, R.approachFrom);
-  const platformZ = -(vFwd * tau + R.dStart);
+  const slideV = (d: number) => (d <= tClear ? 1 : Math.exp(-(d - tClear) / tau));
+  const creep = R.creep * TRACK.speed * pace(robots);
   const eyeEnd = Math.max(at(robots, R.eyeBlend), t0 + 2);
+  const tO = at(robots, R.orbitFrom);
+  const T = dive.start - tO;
+  const localA = (t: number): Vec3 => [
+    vLat * slide(t - t0),
+    lerp(r0.pos[1], R.eye, smoothstep(t0, eyeEnd, t)),
+    -vFwd * tau * (1 - Math.exp(-(t - t0) / tau)) - creep * (t - t0),
+  ];
+  const atO = localA(tO);
+  // The platform stands straight ahead of the camera, dStart away, when the orbit begins.
+  const platform: Vec3 = [atO[0], 0, atO[2] - R.dStart];
+  const platformZ = platform[2];
+  const vxO = vLat * slideV(tO - t0);
+  const vzO = -vFwd * Math.exp(-(tO - t0) / tau) - creep;
+  const dist = curve([{ t: tO, v: R.dStart, slope: vzO }, { t: dive.start, v: R.dEnd, slope: (-1.8 * (R.dStart - R.dEnd)) / T }]);
+  const phi = curve([{ t: tO, v: 0, slope: vxO / R.dStart }, { t: dive.start, v: R.orbit, slope: (1.6 * R.orbit) / T }]);
+  const rise = curve([{ t: tO, v: R.eye, slope: 0 }, { t: dive.start, v: R.rise, slope: 0 }]);
+  const lookAt = (y: number): Vec3 => toWorld(robotsFrame, [platform[0], y, platform[2]]);
   regions.push({
     start: t0,
+    end: tO,
+    pose: (t) => {
+      const local = localA(t);
+      const pos = toWorld(robotsFrame, local);
+      const ahead = add(pos, scale(dirOf(yawR), TRACK.look));
+      const k = smoothstep(Math.max(eyeEnd, tO - 3), tO, t);
+      const target: Vec3 = [lerp(ahead[0], lookAt(R.lookFrom)[0], k), lerp(ahead[1], R.lookFrom, k), lerp(ahead[2], lookAt(R.lookFrom)[2], k)];
+      return { pos, yaw: yawR, target, focus: lerp(r0.focus, local[2] - platformZ, smoothstep(t0, eyeEnd, t)) };
+    },
+  });
+  regions.push({
+    start: tO,
     end: dive.start,
     pose: (t) => {
-      const k = tau * (1 - Math.exp(-(t - t0) / tau));
-      const a = Math.max(0, (t - tA) / (dive.start - tA));
-      const local: Vec3 = [vLat * slide(t - t0), lerp(r0.pos[1], R.eye, smoothstep(t0, eyeEnd, t)), -vFwd * k - (R.dStart - R.dEnd) * a * a];
-      return { pos: toWorld(robotsFrame, local), yaw: yawR, focus: lerp(r0.focus, local[2] - platformZ, smoothstep(t0, eyeEnd, t)) };
+      const d = dist.at(t);
+      const a = phi.at(t);
+      const pos = toWorld(robotsFrame, [platform[0] + d * Math.sin(a), rise.at(t), platform[2] + d * Math.cos(a)]);
+      const target = lookAt(lerp(R.lookFrom, R.lookTo, smoothstep(tO, dive.start, t)));
+      return { pos, yaw: yawR - a, target, focus: d };
     },
   });
 
@@ -408,7 +446,7 @@ export function computeTrack(sequence: Sequence, V: number): Track {
   const posOf = (t: number): Vec3 => poseAt(t).pos;
   const targetOf = (t: number): Vec3 => {
     const p = poseAt(t);
-    return add(p.pos, scale(dirOf(p.yaw), TRACK.look));
+    return p.target ?? add(p.pos, scale(dirOf(p.yaw), TRACK.look));
   };
   const pos = createSpline(ts.map((t) => ({ t, value: posOf(t), velocity: around(posOf, t) })));
   const target = createSpline(ts.map((t) => ({ t, value: targetOf(t), velocity: around(targetOf, t) })));
@@ -434,8 +472,9 @@ export function computeTrack(sequence: Sequence, V: number): Track {
       darkPillar,
       door: { origin: add([r0.pos[0], 0, r0.pos[2]], scale(dirOf(yawR), TRACK.door.gap)), yaw: yawR },
       robots: robotsFrame,
-      settle: vLat * (tClear + tau),
+      settle: platform[0],
       platformZ,
+      platform,
     },
     wipes,
     ledSwitches: words ? TRACK.words.switches.map((u) => at(words, u)) : [],

@@ -143,16 +143,46 @@ describe('computeGallery', () => {
     expect(names(make(20, 30).gallery)).toEqual(['Photos 1']);
   });
 
-  it('puts the robot room and the finale in the robot frame, the platform straight ahead', () => {
+  it('puts the finale in a dive frame centred on the platform, facing the camera where the orbit ends', () => {
     for (const c of CUTS) {
       const { sequence, gallery } = make(20, c.mode, c.music);
-      expect(gallery.finale.frame).toBe(gallery.robots.frame);
+      const { frame } = gallery.finale;
+      const centre = toWorld(gallery.robots.frame, [gallery.robots.platform.center[0], 0, gallery.robots.platform.center[2]]);
+      expect(frame.origin[0]).toBeCloseTo(centre[0], 9);
+      expect(frame.origin[2]).toBeCloseTo(centre[2], 9);
       expect(gallery.robots.platform.center[2]).toBeCloseTo(gallery.track.anchors.platformZ, 12);
+      expect(gallery.finale.carpet[0]).toBe(0);
+      expect(gallery.finale.carpet[2]).toBe(0);
+      expect(gallery.finale.carpetYaw).toBeCloseTo(-TRACK.robots.orbit, 12);
       const dive = requireSegment(sequence, 'dive');
-      const cam = toLocal(gallery.robots.frame, gallery.track.pos.at(dive.start));
-      expect(cam[2]).toBeGreaterThan(gallery.robots.platform.center[2] + ROBOTS_CLEARANCE);
-      expect(Math.abs(cam[0] - gallery.robots.platform.center[0])).toBeLessThan(0.5);
+      const cam = toLocal(frame, gallery.track.pos.at(dive.start));
+      expect(Math.abs(cam[0]), `${c.mode}/${c.music}`).toBeLessThan(0.5);
+      expect(cam[2]).toBeGreaterThan(5);
+      expect(cam[2]).toBeLessThan(9);
     }
+  });
+
+  it('fills the robot room with photos at every height; a few large ones pass beside the camera', () => {
+    const { sequence, gallery } = make(40);
+    const F = gallery.robots.frame;
+    const robots = requireSegment(sequence, 'robots');
+    const dive = requireSegment(sequence, 'dive');
+    const path: Vec3[] = [];
+    for (let t = robots.start; t <= dive.start; t += 0.25) path.push(toLocal(F, gallery.track.pos.at(t)));
+    const f = gallery.robots.floaters;
+    const low = f.filter((x) => x.pos[1] < 0.8).length / f.length;
+    const high = f.filter((x) => x.pos[1] > 4).length / f.length;
+    expect(low).toBeGreaterThan(0.12);
+    expect(high).toBeGreaterThan(0.15);
+    const clearance = (p: Vec3) => Math.min(...path.map((c) => Math.hypot(c[0] - p[0], c[1] - p[1], c[2] - p[2])));
+    const large = f.filter((x) => x.size >= 0.8);
+    expect(large.length).toBeGreaterThanOrEqual(6);
+    expect(large.length).toBeLessThanOrEqual(12);
+    for (const x of large) {
+      expect(clearance(x.pos)).toBeGreaterThan(1.2);
+      expect(clearance(x.pos)).toBeLessThan(4);
+    }
+    for (const x of f) expect(clearance(x.pos)).toBeGreaterThan(0.8);
   });
 
   it('network spokes reach nodes below and above the core', () => {
@@ -172,4 +202,3 @@ describe('computeGallery', () => {
   });
 });
 
-const ROBOTS_CLEARANCE = 5;

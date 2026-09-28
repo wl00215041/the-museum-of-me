@@ -3,7 +3,7 @@ import { findSegment, requireSegment } from '../plan/sequence';
 import type { Segment, Sequence, Vec3 } from '../types';
 import { clamp, lerp } from '../util/math';
 import { mulberry32 } from '../util/rng';
-import { IDENTITY, child, toWorld, type Frame } from './frame';
+import { IDENTITY, child, toLocal, toWorld, type Frame } from './frame';
 import { networkLayout, photoSwarm, pickSpread, shuffle, spot, type CanvasItem, type NetworkLayout, type VisitorSpot } from './placement';
 
 /** White-wall lettering, sized for the measured distances (spec v4 §1; tuned in Task 11). */
@@ -16,7 +16,7 @@ export const TEXT = {
 export const WALL_HEIGHT = { white: 7, dark: 6, robots: 10 } as const;
 export const LABEL_Y = 1.75;
 export const CARPET = { cols: 64, rows: 36, pitch: 0.15, tile: 0.14 } as const;
-export const ROBOTS = { platform: { width: 10, depth: 6, height: 0.35 }, back: 8, halfWidth: 16, front: 6, liftY: 3, floaters: 200, armScale: 1.4 } as const;
+export const ROBOTS = { platform: { width: 10, depth: 6, height: 0.35 }, back: 8, halfWidth: 16, front: 6, liftY: 3, floaters: 260, large: 7, armScale: 1.4 } as const;
 export const HALL = {
   /** Low, wide dark disc under the like sculpture (original 95 s). */
   pedestal: { radius: 2.3, height: 0.22 },
@@ -133,7 +133,11 @@ export interface Gallery {
     arms: { pos: Vec3; yaw: number; phase: number }[];
     floaters: { photoIndex: number; pos: Vec3; size: number; phase: number }[];
   };
-  finale: { frame: Frame; carpet: Vec3; lifted: Vec3; network: NetworkLayout; card: Vec3 };
+  /**
+   * In the dive frame: centred on the platform, facing the camera where the orbit ends. `carpetYaw` turns the carpet
+   * back into line with the platform; it untwists as the carpet lifts into the mosaic.
+   */
+  finale: { frame: Frame; carpet: Vec3; lifted: Vec3; network: NetworkLayout; card: Vec3; carpetYaw: number };
   featured: number[];
   portraitIndex: number;
 }
@@ -371,31 +375,56 @@ export function computeGallery(input: GalleryInput): Gallery {
 
   const platformCenter: Vec3 = [px, P.height / 2, pz];
   // The last arm stands left of the dive so the camera brushes past it (original 152 s).
-  const armSpots = [[-6.2, 0.6, 0], [6.2, 0.2, 1.7], [-3.6, -4.2, 3.1], [3.6, -4.0, 4.6], [-3.4, 4.8, 2.3]] as const;
+  // The dive runs in its own frame, centred on the platform and facing the camera where the orbit ends.
+  const diveFrame = child(F2, [px, 0, pz], -TRACK.robots.orbit);
+  const inRobots = (dx: number, dz: number): [number, number] => {
+    const p = toLocal(F2, toWorld(diveFrame, [dx, 0, dz]));
+    return [p[0] - px, p[2] - pz];
+  };
+  // Four arms around the platform; the last stands left of the dive so the camera brushes past it (original 152 s).
+  const armSpots: [number, number, number][] = [[-6.2, 0.6, 0], [6.2, 0.2, 1.7], [-3.6, -4.2, 3.1], [3.6, -4.0, 4.6], [...inRobots(-3.4, 4.8), 2.3]];
   const arms = armSpots.map(([dx, dz, phase]) => ({ pos: [px + dx, 0, pz + dz] as Vec3, yaw: Math.atan2(-dx, -dz), phase }));
   for (const arm of arms) {
     const k = ROBOTS.armScale;
-    const reach: Vec3 = [arm.pos[0] + Math.sin(arm.yaw) * 2.4 * k, 0, arm.pos[2] + Math.cos(arm.yaw) * 2.4 * k];
-    obstacles.push({
-      name: 'arm',
-      frame: F2,
-      min: [Math.min(arm.pos[0], reach[0]) - 0.7 * k, 0, Math.min(arm.pos[2], reach[2]) - 0.7 * k],
-      max: [Math.max(arm.pos[0], reach[0]) + 0.7 * k, 3.1 * k, Math.max(arm.pos[2], reach[2]) + 0.7 * k],
-      region: 'robots',
-    });
+    // A box in the arm's own frame: local +z is the direction it reaches in (towards the platform).
+    obstacles.push({ name: 'arm', frame: child(F2, arm.pos, -arm.yaw), min: [-0.7 * k, 0, -0.7 * k], max: [0.7 * k, 3.1 * k, (2.4 + 0.7) * k], region: 'robots' });
   }
   obstacles.push({ name: 'platform', frame: F2, min: [px - P.width / 2, 0, pz - P.depth / 2], max: [px + P.width / 2, P.height, pz + P.depth / 2], region: 'robots' });
   for (const b of blocks) {
     obstacles.push({ name: b.name, frame: b.frame, min: [b.center[0] - b.size[0] / 2, b.center[1] - b.size[1] / 2, b.center[2] - b.size[2] / 2], max: [b.center[0] + b.size[0] / 2, b.center[1] + b.size[1] / 2, b.center[2] + b.size[2] / 2], region: b.region, ...(b.until === undefined ? {} : { until: b.until }) });
   }
-  const floaters = Array.from({ length: ROBOTS.floaters }, () => ({
-    photoIndex: Math.floor(rnd() * n),
-    pos: [px + lerp(-12, 12, rnd()), lerp(1.2, 5.5, rnd()), lerp(zBack + 0.5, zBack + 6, rnd())] as Vec3,
-    size: lerp(0.2, 0.45, rnd()),
-    phase: rnd() * Math.PI * 2,
-  }));
+  // Floating photos at every height through the whole room, some resting near the floor, and a few large ones
+  // the camera passes close by (original 128–145 s). None may touch the camera path or the dive over the platform.
+  const diveStart = requireSegment(sequence, 'dive').start;
+  const pathF2: Vec3[] = [];
+  for (let t = robotsSeg.start; t <= diveStart; t += 0.25) pathF2.push(toLocal(F2, track.pos.at(t)));
+  const clearance = (q: Vec3) => Math.min(...pathF2.map((c) => Math.hypot(c[0] - q[0], c[1] - q[1], c[2] - q[2])));
+  const overPlatform = (q: Vec3) => Math.abs(q[0] - px) < P.width / 2 + 1.5 && Math.abs(q[2] - pz) < P.depth / 2 + 1.5 && q[1] < 5.5;
+  const floaters: Gallery['robots']['floaters'] = [];
+  for (let i = 0; floaters.length < ROBOTS.floaters && i < ROBOTS.floaters * 20; i++) {
+    const q: Vec3 = [px + lerp(-14, 14, rnd()), rnd() < 0.2 ? lerp(0.12, 0.8, rnd()) : lerp(0.8, 7.5, rnd()), lerp(zBack + 0.5, 2.5, rnd())];
+    if (overPlatform(q) || clearance(q) < 1) continue;
+    floaters.push({ photoIndex: Math.floor(rnd() * n), pos: q, size: lerp(0.18, 0.45, rnd()), phase: rnd() * Math.PI * 2 });
+  }
+  const orbitFrom = Math.floor(pathF2.length * 0.45);
+  for (let k = 0; k < ROBOTS.large; k++) {
+    const i = orbitFrom + Math.floor(((k + 0.5) / ROBOTS.large) * (pathF2.length - 3 - orbitFrom));
+    const c = pathF2[i];
+    const ahead = [pathF2[i + 2][0] - c[0], pathF2[i + 2][2] - c[2]];
+    const len = Math.hypot(ahead[0], ahead[1]) || 1;
+    const [dx, dz] = [ahead[0] / len, ahead[1] / len];
+    const side = k % 2 === 0 ? 1 : -1;
+    for (let tries = 0; tries < 8; tries++) {
+      const off = 1.8 + 0.3 * tries + 0.6 * rnd();
+      const q: Vec3 = [c[0] - dz * side * off + dx * lerp(0.5, 2, rnd()), lerp(0.5, 2.2, rnd()), c[2] + dx * side * off + dz * lerp(0.5, 2, rnd())];
+      const d = clearance(q);
+      if (overPlatform(q) || d <= 1.2 || d >= 4) continue;
+      floaters.push({ photoIndex: Math.floor(rnd() * n), pos: q, size: lerp(0.8, 1.3, rnd()), phase: rnd() * Math.PI * 2 });
+      break;
+    }
+  }
 
-  const carpet: Vec3 = [px, P.height + 0.006, pz];
+  const carpet: Vec3 = [0, P.height + 0.006, 0];
   const featured = [
     ...new Set([
       portraitIndex,
@@ -420,7 +449,7 @@ export function computeGallery(input: GalleryInput): Gallery {
     words: wordsRoom,
     hall,
     robots: { frame: F2, platform: { center: platformCenter, width: P.width, depth: P.depth, height: P.height }, arms, floaters },
-    finale: { frame: F2, carpet, lifted: [px, ROBOTS.liftY, pz], network: networkLayout(n, portraitIndex, rnd), card: [px, -200, pz] },
+    finale: { frame: diveFrame, carpet, lifted: [0, ROBOTS.liftY, 0], network: networkLayout(n, portraitIndex, rnd), card: [0, -200, 0], carpetYaw: -TRACK.robots.orbit },
     featured,
     portraitIndex,
   };

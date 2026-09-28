@@ -52,12 +52,29 @@ describe('buildGalleryPath', () => {
     for (const c of CUTS) {
       const { sequence, gallery, path } = make(c.mode, c.music);
       const dive = requireSegment(sequence, 'dive');
-      const F = gallery.robots.frame;
+      const F = gallery.finale.frame;
       const d = dive.end - dive.start;
       for (let t = dive.start; t < dive.start + 0.35 * d; t += 0.1) {
         const v = toLocalDir(F, scale(sub(path.poseAt(t + 0.02).pos, path.poseAt(t).pos), 50));
         expect(v[2], `${c.mode}/${c.music} t=${t.toFixed(2)}`).toBeLessThan(0.05);
       }
+    }
+  });
+
+  it('glides low over the carpet, then rises to look straight down on it (original 150–162 s)', () => {
+    for (const c of CUTS) {
+      const { sequence, gallery, path } = make(c.mode, c.music);
+      const dive = requireSegment(sequence, 'dive');
+      const F = gallery.finale.frame;
+      const d = dive.end - dive.start;
+      const low = toLocal(F, path.poseAt(dive.start + 0.6 * d).pos);
+      expect(low[1], `${c.mode}/${c.music} glide height`).toBeLessThan(1.3);
+      expect(Math.abs(low[2]), `${c.mode}/${c.music} over the carpet`).toBeLessThan(3);
+      const end = path.poseAt(dive.end - 1e-6);
+      const v = toLocalDir(F, sub(end.target, end.pos));
+      expect(v[1] / length(v), `${c.mode}/${c.music} top-down`).toBeLessThan(-0.95);
+      const above = toLocal(F, end.pos);
+      expect(Math.hypot(above[0], above[2])).toBeLessThan(1);
     }
   });
 

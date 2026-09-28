@@ -27,7 +27,6 @@ export function buildGalleryPath(sequence: Sequence, gallery: Gallery): CameraPa
   const mosaic = requireSegment(sequence, 'mosaic');
   const network = findSegment(sequence, 'network');
   const ending = requireSegment(sequence, 'ending');
-  const P = gallery.robots.platform.center;
   const C = gallery.finale.lifted;
   const t0 = dive.start;
   const d = dive.end - dive.start;
@@ -38,18 +37,22 @@ export function buildGalleryPath(sequence: Sequence, gallery: Gallery): CameraPa
   const targetVel = scale(sub(exitTarget, track.target.at(t0 - 1e-3)), 1e3);
   const posKeys: SplineKey[] = [
     { t: t0, value: toLocal(F, track.exit.pos), velocity: toLocalDir(F, track.exit.vel) },
-    { t: t0 + 0.35 * d, value: [P[0], 1.35, P[2] + 3.8] },
-    { t: t0 + 0.7 * d, value: [P[0] - 0.3, 0.95, P[2] + 1.6] },
-    { t: dive.end, value: [P[0], 4.2, P[2] + 1.2] },
+    // In the dive frame the platform centre is the origin and the camera arrives from +z (original 150–162 s):
+    // past the arm, a low glide over the carpet looking down at it, then up until it looks straight down.
+    { t: t0 + 0.35 * d, value: [0.3, 1.35, 3.6] },
+    { t: t0 + 0.6 * d, value: [-0.1, 0.95, 1.2] },
+    { t: t0 + 0.8 * d, value: [0, 2.4, 0.4] },
+    { t: dive.end, value: [0, 4.8, 0.25] },
     // As in the original: by a third of the mosaic the whole lifted carpet is in frame, then it shrinks away.
     { t: mosaic.start + 0.35 * m, value: [C[0], C[1] + 11, C[2] + 7] },
     { t: mosaic.end, value: [C[0], C[1] + 8.5, C[2] + 5] },
   ];
   const targetKeys: SplineKey[] = [
     { t: t0, value: toLocal(F, exitTarget), velocity: toLocalDir(F, targetVel) },
-    { t: t0 + 0.35 * d, value: [P[0], 0.6, P[2]] },
-    { t: t0 + 0.7 * d, value: [P[0] + 3, 0.4, P[2] - 0.6] },
-    { t: dive.end, value: [P[0], 0.4, P[2]] },
+    { t: t0 + 0.35 * d, value: [0.4, 0.4, -0.5] },
+    { t: t0 + 0.6 * d, value: [0.8, 0.36, -2.2] },
+    { t: t0 + 0.8 * d, value: [0.2, 0.36, -0.6] },
+    { t: dive.end, value: [0, 0.36, 0] },
     { t: mosaic.start + 0.35 * m, value: C },
     { t: mosaic.end, value: C },
   ];

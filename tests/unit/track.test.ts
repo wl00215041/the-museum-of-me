@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HALF_HFOV_TAN, TRACK, computeTrack, whiteWalk } from '../../src/camera/track';
 import { buildSequence, requireSegment } from '../../src/plan/sequence';
-import { dirOf, dot, length, rightOf, scale, sub, toLocal, toLocalDir } from '../../src/stage/frame';
+import { dirOf, dot, length, rightOf, scale, sub, toLocal } from '../../src/stage/frame';
 import type { LengthMode, Segment, Sequence, Vec3 } from '../../src/types';
 
 const CUTS: { mode: LengthMode; music: number | null }[] = [
@@ -89,15 +89,34 @@ describe('computeTrack — auto cut, measured on the original', () => {
     expect(Math.abs(dot(moved, dirOf(endYaw)))).toBeLessThan(1e-6);
   });
 
-  it('goes straight ahead in the robot room: the sideways motion dies out and the approach speeds up', () => {
+  it('creeps in, then orbits the platform to the right while moving in and rising, keeping it in view (original 125–157 s)', () => {
     const r = requireSegment(s, 'robots');
     const dive = requireSegment(s, 'dive');
     const F = tr.anchors.robots;
-    const vel = (t: number): Vec3 => toLocalDir(F, scale(sub(tr.pose(t + 0.01).pos, tr.pose(t - 0.01).pos), 50));
-    for (let t = at(r, 0.5); t < dive.start - 0.1; t += 0.5) expect(Math.abs(vel(t)[0])).toBeLessThan(0.05);
-    expect(vel(at(r, 0.9))[2]).toBeLessThan(vel(at(r, 0.5))[2]);
-    expect(toLocalDir(F, tr.exit.vel)[2]).toBeLessThan(0);
-    expect(tr.pose(dive.start).focus).toBeCloseTo(TRACK.robots.dEnd, 1);
+    const P = tr.anchors.platform;
+    const local = (t: number) => toLocal(F, tr.pos.at(t));
+    const angle = (t: number) => { const p = local(t); return Math.atan2(p[0] - P[0], p[2] - P[2]); };
+    const dist = (t: number) => { const p = local(t); return Math.hypot(p[0] - P[0], p[2] - P[2]); };
+    expect(Math.abs(angle(at(r, 0.45)))).toBeLessThan(0.03);
+    expect(angle(dive.start)).toBeCloseTo(TRACK.robots.orbit, 1);
+    let previous = -Infinity;
+    for (let t = at(r, TRACK.robots.orbitFrom); t <= dive.start; t += 0.25) {
+      expect(angle(t)).toBeGreaterThanOrEqual(previous - 1e-6);
+      previous = angle(t);
+    }
+    expect(dist(dive.start)).toBeCloseTo(TRACK.robots.dEnd, 0);
+    expect(dist(at(r, 0.45))).toBeGreaterThan(TRACK.robots.dStart - 1.5);
+    expect(tr.pos.at(dive.start)[1]).toBeCloseTo(TRACK.robots.rise, 1);
+    // Looking at the platform (horizontally) from the start of the orbit, and down at the carpet by its end.
+    for (let t = at(r, TRACK.robots.orbitFrom); t <= dive.start; t += 0.5) {
+      const p = local(t);
+      const q = toLocal(F, tr.target.at(t));
+      const off = Math.atan2(q[0] - p[0], q[2] - p[2]) - Math.atan2(P[0] - p[0], P[2] - p[2]);
+      expect(Math.abs(Math.atan2(Math.sin(off), Math.cos(off))), `t=${t.toFixed(2)}`).toBeLessThan(0.035);
+    }
+    const down = sub(tr.target.at(dive.start), tr.pos.at(dive.start));
+    expect(down[1] / length(down)).toBeLessThan(-0.2);
+    expect(tr.pose(dive.start).focus).toBeCloseTo(TRACK.robots.dEnd, 0);
     const door = toLocal(F, tr.anchors.door.origin);
     expect(door[0]).toBeCloseTo(0, 9);
     expect(door[2]).toBeCloseTo(-TRACK.door.gap, 9);

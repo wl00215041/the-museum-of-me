@@ -1,10 +1,11 @@
 import {
   AdditiveBlending, BackSide, BufferGeometry, Color, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Matrix4, Mesh,
-  MeshBasicMaterial, PlaneGeometry, Points, PointsMaterial, Quaternion, SphereGeometry, Vector3, type InstancedMesh, type Material,
+  MeshBasicMaterial, PlaneGeometry, Points, PointsMaterial, Quaternion, SphereGeometry, Vector3, Euler, type InstancedMesh, type Material,
 } from 'three';
 import { findSegment, localU, requireSegment } from '../../plan/sequence';
 import type { Vec3 } from '../../types';
 import { clamp, lerp, smoothstep } from '../../util/math';
+import { mulberry32 } from '../../util/rng';
 import { placeIn } from '../frame';
 import { CARPET } from '../gallery';
 import { buildAtlasInstances, createAtlasMaterial, type AtlasInstance } from '../parts/atlas-mesh';
@@ -16,7 +17,7 @@ import { hiresOf, type GalleryContext, type RoomObject } from './context';
 /** Multiplier that brings a photo's average colour to the cell colour (softened, clamped). */
 const tintOf = (cell: number, photo: number) => 1 + (clamp(cell / Math.max(photo, 0.04), 0, 3) - 1) * 0.9;
 
-type CarpetItem = AtlasInstance & { tint: [number, number, number] };
+type CarpetItem = AtlasInstance & { tint: [number, number, number]; base: [number, number]; lie: { dy: number; ax: number; az: number } };
 type NodeItem = AtlasInstance & { pos: Vec3; radius: number; delay: number };
 
 export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: number): number } {
@@ -52,15 +53,28 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
   carpet.name = 'carpet';
   carpet.position.set(fin.carpet[0], fin.carpet[1], fin.carpet[2]);
   const { colors, assignment } = content.mosaic;
+  // The photos lie unevenly on the platform, a few propped up (original 147–159 s); they settle flat as the carpet lifts.
+  const scatter = mulberry32(97);
+  const qc = new Quaternion();
+  const e = new Euler();
+  const lieMatrix = (item: Pick<CarpetItem, 'base' | 'lie'>, f: number, out = new Matrix4()) =>
+    out.compose(new Vector3(item.base[0], item.lie.dy * f, item.base[1]), qc.setFromEuler(e.set(item.lie.ax * f, 0, item.lie.az * f)), new Vector3(1, 1, 1));
   const items: CarpetItem[] = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const i = r * cols + c;
       const photo = assignment[i];
       const pc = lib.colors[photo];
+      const propped = scatter() < 0.08;
+      const angle = propped ? lerp(0.3, 0.6, scatter()) * (scatter() < 0.5 ? -1 : 1) : (scatter() - 0.5) * 0.1;
+      const aroundX = scatter() < 0.5;
+      const lie = { dy: propped ? Math.abs(Math.sin(angle)) * (tile / 2) : scatter() * 0.025, ax: aroundX ? angle : 0, az: aroundX ? 0 : angle };
+      const base: [number, number] = [(c - (cols - 1) / 2) * pitch, (r - (rows - 1) / 2) * pitch];
       items.push({
         photoIndex: photo,
-        matrix: new Matrix4().makeTranslation((c - (cols - 1) / 2) * pitch, 0, (r - (rows - 1) / 2) * pitch),
+        base,
+        lie,
+        matrix: lieMatrix({ base, lie }, 1),
         color: new Color(1, 1, 1),
         tint: [tintOf(colors[i * 3], pc[0]), tintOf(colors[i * 3 + 1], pc[1]), tintOf(colors[i * 3 + 2], pc[2])],
       });
@@ -108,9 +122,17 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
   core.name = 'network-core';
   core.scale.setScalar(0);
   networkGroup.add(core);
-  const order = net.nodes.map((n, i) => ({ i, d: Math.hypot(...n.pos) })).sort((a, b) => a.d - b.d);
+  // Bubbles on a spoke appear as their spoke arrives; the others grow outwards afterwards.
+  const arrive = new Map<number, number>();
+  net.edges
+    .filter(([a]) => a === -1)
+    .map(([, b]) => ({ b, d: Math.hypot(...net.nodes[b].pos) }))
+    .sort((x, y) => x.d - y.d)
+    .forEach(({ b }, rank, all) => arrive.set(b, 0.06 + (0.1 * rank) / Math.max(1, all.length - 1)));
+  const order = net.nodes.map((n, i) => ({ i, d: Math.hypot(...n.pos) })).filter(({ i }) => !arrive.has(i)).sort((a, b) => a.d - b.d);
   const delays = new Array<number>(net.nodes.length);
-  order.forEach(({ i }, rank) => { delays[i] = 0.05 + (0.45 * rank) / Math.max(1, order.length - 1); });
+  for (const [i, t] of arrive) delays[i] = t - 0.02;
+  order.forEach(({ i }, rank) => { delays[i] = 0.15 + (0.35 * rank) / Math.max(1, order.length - 1); });
   const nodeItems: NodeItem[] = net.nodes.map((n, i) => ({
     photoIndex: n.photoIndex, matrix: new Matrix4().makeScale(0, 0, 0), pos: n.pos, radius: n.radius, delay: delays[i],
   }));
@@ -129,7 +151,14 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
     return new LineSegments(geometry, owned(new LineBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false })));
   };
   const posOf = (i: number): Vec3 => (i < 0 ? [0, 0, 0] : net.nodes[i].pos);
-  const edges = lines(net.edges.flatMap(([a, b]) => [...posOf(a), ...posOf(b)]), 0x9aa7b8);
+  // Spokes shoot out of the portrait first (original 174–175 s); the web between the bubbles comes after.
+  const spokeEdges = net.edges.filter(([a]) => a === -1);
+  const edges = lines(net.edges.filter(([a]) => a !== -1).flatMap(([a, b]) => [...posOf(a), ...posOf(b)]), 0x9aa7b8);
+  edges.name = 'network-edges';
+  const spokes = lines(new Array(spokeEdges.length * 6).fill(0), 0x7fb4e0);
+  spokes.name = 'network-spokes';
+  spokes.frustumCulled = false;
+  const spokeDirs = spokeEdges.map(([, b]) => new Vector3(...net.nodes[b].pos).normalize());
   const star = (i: number) => net.stars.slice(i * 3, i * 3 + 3);
   const starEdges = lines(net.starEdges.flatMap(([a, b]) => [...star(a), ...star(b)]), 0x3b6fb6);
   const points = (positions: number[], size: number, color: number, name: string) => {
@@ -141,7 +170,9 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
   };
   const stars = points(net.stars, 0.16, 0xdfe8ff, 'stars');
   const highlights = points(net.highlights.flatMap(star), 0.28, 0x4aa3ff, 'highlights');
-  networkGroup.add(edges, starEdges, stars, highlights);
+  const sparks = points(spokeDirs.flatMap((d) => [d.x * 0.57, d.y * 0.57, d.z * 0.57]), 0.07, 0x4ad0ff, 'network-sparks');
+  core.add(sparks);
+  networkGroup.add(edges, spokes, starEdges, stars, highlights);
 
   // End card, far below, framed by the fixed ending camera.
   const cardGroup = new Group();
@@ -177,6 +208,8 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
   const carpetFrom = new Vector3(...fin.carpet);
   const carpetTo = new Vector3(...fin.lifted);
   let lastTint = -1;
+  let lastLie = -1;
+  const lm = new Matrix4();
   const q = new Quaternion();
   const m = new Matrix4();
   const v = new Vector3();
@@ -190,7 +223,16 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
     const mu = localU(mosaic, t);
     const lift = smoothstep(0, 0.4, mu);
     carpet.position.lerpVectors(carpetFrom, carpetTo, lift);
-    carpet.rotation.set(-0.35 * lift, 0.25 * lift + 0.12 * mu, 0);
+    // Starts in line with the platform, then untwists as it lifts (original 160–175 s).
+    carpet.rotation.set(-0.35 * lift, fin.carpetYaw * (1 - lift) + 0.25 * lift + 0.12 * mu, 0);
+    const lie = 1 - smoothstep(0, 0.35, mu);
+    if (lie !== lastLie) {
+      lastLie = lie;
+      for (const mesh of tiles as InstancedMesh[]) {
+        (mesh.userData.items as CarpetItem[]).forEach((item, i) => mesh.setMatrixAt(i, lieMatrix(item, lie, lm)));
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+    }
     let scale = lerp(1, 0.3, smoothstep(0.55, 1, mu));
     overlayMaterial.opacity = smoothstep(0.55, 0.85, mu);
     const k = smoothstep(0.1, 0.7, mu);
@@ -218,7 +260,20 @@ export function buildFinale(ctx: GalleryContext): RoomObject & { blackoutAt(t: n
         });
         mesh.instanceMatrix.needsUpdate = true;
       }
-      (edges.material as LineBasicMaterial).opacity = 0.5 * smoothstep(0.1, 0.5, nu);
+      const cs = core.scale.x;
+      const sp = spokes.geometry.getAttribute('position');
+      spokeEdges.forEach(([, b], k) => {
+        const d = spokeDirs[k];
+        const [x, y, z] = net.nodes[b].pos;
+        const f = smoothstep(0.02, arrive.get(b)!, nu);
+        const r0 = 0.55 * cs;
+        sp.setXYZ(2 * k, d.x * r0, d.y * r0, d.z * r0);
+        sp.setXYZ(2 * k + 1, d.x * r0 + (x - d.x * r0) * f, d.y * r0 + (y - d.y * r0) * f, d.z * r0 + (z - d.z * r0) * f);
+      });
+      sp.needsUpdate = true;
+      (spokes.material as LineBasicMaterial).opacity = 0.75 * smoothstep(0.015, 0.03, nu);
+      (sparks.material as PointsMaterial).opacity = smoothstep(0.02, 0.06, nu);
+      (edges.material as LineBasicMaterial).opacity = 0.5 * smoothstep(0.2, 0.5, nu);
       const late = smoothstep(0.4, 0.7, nu);
       (starEdges.material as LineBasicMaterial).opacity = 0.35 * late;
       (stars.material as PointsMaterial).opacity = late;
