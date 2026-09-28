@@ -68,3 +68,24 @@ export function cellTexture(library: PhotoLibrary, index: number, rect: 'fit' | 
   texture.needsUpdate = true;
   return texture;
 }
+
+/** Like `cellTexture(…, 'fit')`, then cropped (cover) to `target` aspect. */
+export function cellTextureCropped(library: PhotoLibrary, index: number, target: number): Texture {
+  const cell = library.cell(index);
+  const aspect = library.aspects[index];
+  let [u, v, w, h] = cell.fit;
+  if (aspect > target) {
+    const nw = (w * target) / aspect;
+    u += (w - nw) / 2;
+    w = nw;
+  } else {
+    const nh = (h * aspect) / target;
+    v += (h - nh) / 2;
+    h = nh;
+  }
+  const texture = library.atlases[cell.atlas].clone();
+  texture.offset.set(u, v);
+  texture.repeat.set(w, h);
+  texture.needsUpdate = true;
+  return texture;
+}
