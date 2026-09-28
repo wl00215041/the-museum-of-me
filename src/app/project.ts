@@ -7,7 +7,7 @@ import { buildSequence } from '../plan/sequence';
 import { CARPET, computeGallery, type Gallery } from '../stage/gallery';
 import { buildGalleryWorld, type GalleryWorld } from '../stage/gallery/world';
 import { LED_V4, ledLines, ledWords } from '../stage/parts/led';
-import type { ProjectInput, Sequence } from '../types';
+import { SCENE_IDS, type ProjectInput, type Scenes, type Sequence } from '../types';
 import { MIN_PHOTOS } from '../ui/validate';
 import { exhibitionDate, formatDisplayDate, formatExhibitionStamp } from '../util/format';
 import { hashString } from '../util/rng';
@@ -61,7 +61,11 @@ export async function buildProject(input: ProjectInput, pool: PhotoPool, onStatu
     // Synthesis runs alongside the photo work below (review Important #2).
     const soundtrackPromise = buildSoundtrack({ style: input.musicStyle, file: input.music }, sequence.total, seed);
     soundtrackPromise.catch(() => undefined);
-    const gallery = computeGallery({ sequence, aspects: library.aspects, portraitIndex, seed });
+    // Scene lists name input photos; the library skipped unreadable files, so map through sourceIndices.
+    const scenes: Partial<Scenes> | undefined = input.scenes
+      ? Object.fromEntries(SCENE_IDS.map((id) => [id, (input.scenes?.[id] ?? []).map((i) => library.sourceIndices.indexOf(i)).filter((i) => i >= 0)]))
+      : undefined;
+    const gallery = computeGallery({ sequence, aspects: library.aspects, portraitIndex, seed, scenes });
 
     onStatus('準備展示用的高解析照片…');
     await loadHires(library, input.photos, gallery.featured, pool);
