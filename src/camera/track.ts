@@ -67,7 +67,7 @@ export const TRACK = {
    * Robot room (original 125–157 s): creep in, then orbit the platform to the right while moving in and rising,
    * looking down at the carpet more and more. dStart/dEnd are distances to the platform centre.
    */
-  robots: { dStart: 16, dEnd: 7.5, eye: 1.6, eyeBlend: 0.1, orbitFrom: 0.08, orbit: deg(55), rise: 2.6, creep: 0.1, lookFrom: 1.1, lookTo: 0.45, settle: 1.0 },
+  robots: { dStart: 16, dEnd: 9.5, eye: 1.6, eyeBlend: 0.1, orbitFrom: 0.08, orbit: deg(55), rise: 2.6, creep: 0.1, lookFrom: 1.1, lookTo: 0.45, settle: 1.0 },
   sample: 0.25,
 } as const;
 

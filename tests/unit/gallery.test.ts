@@ -186,7 +186,7 @@ describe('computeGallery', () => {
       const cam = toLocal(frame, gallery.track.pos.at(dive.start));
       expect(Math.abs(cam[0]), `${c.mode}/${c.music}`).toBeLessThan(0.5);
       expect(cam[2]).toBeGreaterThan(5);
-      expect(cam[2]).toBeLessThan(9);
+      expect(cam[2]).toBeLessThan(11);
     }
   });
 
