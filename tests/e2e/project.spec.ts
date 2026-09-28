@@ -45,6 +45,8 @@ test('cancelling a large build returns to the form, and building again works', a
   await expect(page.locator('#stage')).toBeHidden();
   await page.waitForTimeout(3000);
   await expect(page.locator('#stage')).toBeHidden();
+  await expect(page.locator('#photo-count')).toHaveText('120 / 500 張');
+  await expect(page.locator('#generate')).toBeEnabled();
   await page.click('#generate');
   await expect(page.locator('#stage')).toBeVisible({ timeout: 180_000 });
 });
