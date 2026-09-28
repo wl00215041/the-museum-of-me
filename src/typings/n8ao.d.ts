@@ -4,6 +4,8 @@ declare module 'n8ao' {
 
   export class N8AOPostPass extends Pass {
     constructor(scene: Scene, camera: Camera, width?: number, height?: number);
+    /** The scene whose depth/normals are sampled; swapped together with the render pass. */
+    scene: Scene;
     configuration: {
       aoRadius: number;
       distanceFalloff: number;
