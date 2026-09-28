@@ -53,13 +53,14 @@ export const TRACK = {
     videosWall: 11,
     videosHalfWidth: 6.5,
     gridTurn: deg(90),
-    gridLength: 13,
+    gridLength: 14.5,
     likesTurn: deg(120),
     likesLength: 16,
     orbitEndWithVideos: 0.4,
     orbitEndWithoutVideos: 0.8,
   },
-  truck: { videos: 0.5, ramp: 1.5 },
+  /** Truck along the Videos wall; it speeds up over the last seconds before the robot door (original 121–123 s). */
+  truck: { videos: 0.4, ramp: 1.5, doorBoost: 0.45, doorRamp: 3 },
   /** Wide enough to cover the whole frame at 1.6 m, so the robot room can be swapped in behind it. */
   door: { gap: 1.6, width: 2.2 },
   robots: { dStart: 17, dEnd: 11, eye: 1.6, eyeBlend: 0.1, approachFrom: 0.1, settle: 1.0 },
@@ -291,6 +292,8 @@ export function computeTrack(sequence: Sequence, V: number): Track {
     const v0 = velBefore(l.start)[0];
     const tTurn = at(l, H0.turnEnd);
     const tOrbitEnd = videos ? at(videos, H0.orbitEndWithVideos) : at(l, H0.orbitEndWithoutVideos);
+    // Focus moves from the LED wall to the hall over at least 2 s, carrying on into the orbit.
+    const focusIn = (t: number) => smoothstep(l.start, l.start + Math.max(tTurn - l.start, 2), t);
     regions.push({
       start: l.start,
       end: tTurn,
@@ -299,7 +302,7 @@ export function computeTrack(sequence: Sequence, V: number): Track {
         // Slow to a stop while turning, so the orbit starts from rest.
         const d = t - l.start;
         const x = v0 * (d - (d * d) / (2 * (tTurn - l.start)));
-        return { pos: [s0.pos[0] + x, s0.pos[1], s0.pos[2]], yaw: H0.turn * k, focus: lerp(s0.focus, H0.r0, k) };
+        return { pos: [s0.pos[0] + x, s0.pos[1], s0.pos[2]], yaw: H0.turn * k, focus: lerp(s0.focus, H0.r0 + 4, focusIn(t)) };
       },
     });
     const p1 = poseAt(tTurn).pos;
@@ -309,14 +312,21 @@ export function computeTrack(sequence: Sequence, V: number): Track {
       const phi = H0.turn - H0.orbit * e;
       const r = lerp(H0.r0, H0.r1Camera, e);
       const p = sub(thumb, scale(dirOf(phi), r));
-      return { pos: [p[0], s0.pos[1], p[2]], yaw: phi + H0.lookOffset * e, focus: lerp(r, H0.videosWall, e) };
+      // Focus a little behind the thumb, so the walls around it stay readable.
+      return { pos: [p[0], s0.pos[1], p[2]], yaw: phi + H0.lookOffset * e, focus: lerp(s0.focus, lerp(r + 4, H0.videosWall, e), focusIn(t)) };
     };
     regions.push({ start: tTurn, end: tOrbitEnd, pose: orbit });
     const last = orbit(tOrbitEnd);
     const vy = last.yaw;
     // Truck at the original pace of its segment, so it covers the same distance in every cut.
     const vT = TRACK.truck.videos * TRACK.speed * pace(videos ?? l);
-    const truck = integral((t) => vT * smoothstep(tOrbitEnd, tOrbitEnd + TRACK.truck.ramp, t), tOrbitEnd, robots.start);
+    // At least 0.9 m/s past the door, even in long cuts, so the black does not linger.
+    const boost = Math.max(TRACK.truck.doorBoost * TRACK.speed * pace(videos ?? l), 0.9 - vT);
+    const truck = integral(
+      (t) => vT * smoothstep(tOrbitEnd, tOrbitEnd + TRACK.truck.ramp, t) + boost * smoothstep(robots.start - TRACK.truck.doorRamp, robots.start, t),
+      tOrbitEnd,
+      robots.start,
+    );
     regions.push({ start: tOrbitEnd, end: robots.start, pose: (t) => ({ pos: add(last.pos, scale(rightOf(vy), truck.at(t))), yaw: vy, focus: H0.videosWall }) });
     // Walls in a chain: Videos wall, the grid wall turned 50° at its right end, then the Likes wall.
     // The walls are laid out from the reference end point at r1, whatever the camera's own radius.
@@ -346,6 +356,10 @@ export function computeTrack(sequence: Sequence, V: number): Track {
   const vLat = dot(v0, rightOf(yawR));
   const vFwd = dot(v0, dirOf(yawR));
   const tau = R.settle;
+  // Keep sliding at the door speed until the door has left the frame, then settle (original 123–127 s).
+  const clear = TRACK.door.width / 2 + TRACK.door.gap * HALF_HFOV_TAN + 0.2;
+  const tClear = clear / Math.max(Math.abs(vLat), 0.2);
+  const slide = (d: number) => (d <= tClear ? d : tClear + tau * (1 - Math.exp(-(d - tClear) / tau)));
   const tA = at(robots, R.approachFrom);
   const platformZ = -(vFwd * tau + R.dStart);
   const eyeEnd = Math.max(at(robots, R.eyeBlend), t0 + 2);
@@ -355,7 +369,7 @@ export function computeTrack(sequence: Sequence, V: number): Track {
     pose: (t) => {
       const k = tau * (1 - Math.exp(-(t - t0) / tau));
       const a = Math.max(0, (t - tA) / (dive.start - tA));
-      const local: Vec3 = [vLat * k, lerp(r0.pos[1], R.eye, smoothstep(t0, eyeEnd, t)), -vFwd * k - (R.dStart - R.dEnd) * a * a];
+      const local: Vec3 = [vLat * slide(t - t0), lerp(r0.pos[1], R.eye, smoothstep(t0, eyeEnd, t)), -vFwd * k - (R.dStart - R.dEnd) * a * a];
       return { pos: toWorld(robotsFrame, local), yaw: yawR, focus: lerp(r0.focus, local[2] - platformZ, smoothstep(t0, eyeEnd, t)) };
     },
   });
@@ -374,6 +388,8 @@ export function computeTrack(sequence: Sequence, V: number): Track {
   }
   if (darkPillar) addWipe('dark-pillar', tPillar, TRACK.darkPillar.width / 2, TRACK.darkPillar.gap, velBefore(tPillar)[0]);
   addWipe('robot-door', t0, TRACK.door.width / 2, TRACK.door.gap, vLat);
+  // The door is removed only once it has slid out of the frame.
+  wipes[wipes.length - 1].end = t0 + tClear + 0.3;
 
   // Smooth the piecewise walk: samples every 0.25 s plus every region edge, with their exact derivatives.
   const special = [white.tPar, white.tEx, white.tPullBack, dive.start, ...regions.flatMap((r) => [r.start, r.end])];
@@ -418,7 +434,7 @@ export function computeTrack(sequence: Sequence, V: number): Track {
       darkPillar,
       door: { origin: add([r0.pos[0], 0, r0.pos[2]], scale(dirOf(yawR), TRACK.door.gap)), yaw: yawR },
       robots: robotsFrame,
-      settle: vLat * tau,
+      settle: vLat * (tClear + tau),
       platformZ,
     },
     wipes,

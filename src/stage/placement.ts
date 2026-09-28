@@ -66,14 +66,19 @@ function overlapWithRecent(items: CanvasItem[], x: number, y: number, w: number,
 }
 
 /** Salon-style swarm rising from lower left to upper right, thickening as it goes (the original's Photos wall). */
-export function photoSwarm(aspects: number[], xa: number, xb: number, rnd: () => number, wallHeight = 6, z = 0, rise: readonly [number, number] = [1.25, 3.4]): CanvasItem[] {
+export function photoSwarm(
+  aspects: number[], xa: number, xb: number, rnd: () => number, wallHeight = 6, z = 0,
+  rise: readonly [number, number] = [1.25, 3.4],
+  /** Size multiplier at the start and at the end of the swarm. */
+  grow: readonly [number, number] = [1, 1],
+): CanvasItem[] {
   const n = aspects.length;
   const span = xb - xa;
   const base = clamp(Math.sqrt((span * 1.6) / n) * 0.72, 0.22, 0.95);
   const placed: CanvasItem[] = [];
   aspects.forEach((aspect, photoIndex) => {
     const u = (photoIndex + 0.5) / n;
-    const long = base * (0.8 + 0.4 * rnd());
+    const long = base * (0.8 + 0.4 * rnd()) * lerp(grow[0], grow[1], u);
     const { width, height } = canvasSize(aspect, long);
     const centerY = lerp(rise[0], rise[1], u ** 0.8);
     const thickness = lerp(0.4, 2.4, u);

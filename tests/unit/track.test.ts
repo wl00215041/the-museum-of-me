@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TRACK, computeTrack, whiteWalk } from '../../src/camera/track';
+import { HALF_HFOV_TAN, TRACK, computeTrack, whiteWalk } from '../../src/camera/track';
 import { buildSequence, requireSegment } from '../../src/plan/sequence';
 import { dirOf, dot, length, rightOf, scale, sub, toLocal, toLocalDir } from '../../src/stage/frame';
 import type { LengthMode, Segment, Sequence, Vec3 } from '../../src/types';
@@ -144,6 +144,18 @@ describe('computeTrack — every cut', () => {
         expect(Math.abs(viewYaw(tr, t + dt) - viewYaw(tr, t)), `${c.mode}/${c.music} t=${t.toFixed(2)} yaw`).toBeLessThan(0.06);
         expect(Math.abs(tr.focus.at(t + dt) - tr.focus.at(t)), `${c.mode}/${c.music} t=${t.toFixed(2)} focus`).toBeLessThan(0.6);
       }
+    }
+  });
+
+  it('slides the robot door fully out of the frame before removing it, within 3.5 s of full cover', () => {
+    for (const c of CUTS) {
+      const s = seq(c.mode, c.music);
+      const tr = computeTrack(s, speedFor(s));
+      const door = tr.wipes.find((w) => w.name === 'robot-door')!;
+      const clear = TRACK.door.width / 2 + TRACK.door.gap * HALF_HFOV_TAN;
+      const slid = toLocal(tr.anchors.robots, tr.pose(door.end).pos)[0] - toLocal(tr.anchors.robots, tr.pose(door.mid).pos)[0];
+      expect(Math.abs(slid), `${c.mode}/${c.music} door still in frame when removed`).toBeGreaterThan(clear);
+      expect(door.end - door.mid, `${c.mode}/${c.music} reveal`).toBeLessThan(3.5);
     }
   });
 

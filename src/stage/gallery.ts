@@ -18,9 +18,9 @@ export const LABEL_Y = 1.75;
 export const CARPET = { cols: 64, rows: 36, pitch: 0.15, tile: 0.14 } as const;
 export const ROBOTS = { platform: { width: 10, depth: 6, height: 0.35 }, back: 8, halfWidth: 16, front: 6, liftY: 3, floaters: 200, armScale: 1.4 } as const;
 export const HALL = {
-  crt: { count: 7, from: -3.5, pitch: 1.1, y: 1.35, z: 1.6, width: 0.46, height: 0.34 },
+  crt: { count: 7, from: -3.5, pitch: 1.1, y: 1.35, z: 1.6, width: 0.6, height: 0.45 },
   /** The photo grid hangs on the grid wall's west part, next to the Videos corner. */
-  grid: { cols: 6, rows: 5, pitchX: 0.7, pitchY: 0.52, width: 0.62, height: 0.46, bottom: 1.0, step: 1.6, offset: -2.8 },
+  grid: { cols: 6, rows: 5, pitchX: 1.1, pitchY: 0.8, width: 1.0, height: 0.72, bottom: 1.0, step: 1.6, offset: -2.4 },
   videos: { cols: 4, rows: 3, width: 2, height: 1.2, gap: 0.06, y: 2.2 },
 } as const;
 
@@ -245,7 +245,8 @@ export function computeGallery(input: GalleryInput): Gallery {
   const swarmB = Math.max(swarmA + 4, wallEnd - 0.8);
   const passer = track.pose(at(photosSeg, 0.55)).pos;
   const photos: Gallery['photos'] = {
-    items: photoSwarm(aspects, swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.5, 5.3]),
+    // Photos grow along the wall so they stay legible while the camera pulls back (user feedback, v4).
+    items: photoSwarm(aspects, swarmA, swarmB, rnd, WALL_HEIGHT.white, 0, [1.5, 5.3], [0.8, 2.2]),
     visitors: [
       spot([lerp(swarmA, swarmB, 0.25), 0, 1.2], 0, rnd),
       spot([lerp(swarmA, swarmB, 0.55), 0, 1.6], 2, rnd),

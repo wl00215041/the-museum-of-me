@@ -77,7 +77,7 @@ export function buildHallRoom(ctx: GalleryContext): RoomObject | null {
     let m = cache.get(i);
     if (!m) {
       m = new MeshBasicMaterial({ map: cellTextureCropped(lib, i, G.width / G.height) });
-      m.color.setScalar(0.7);
+      m.color.setScalar(0.9);
       m.userData.photoIndex = i;
       cache.set(i, m);
     }

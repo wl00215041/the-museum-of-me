@@ -69,6 +69,14 @@ describe('computeGallery', () => {
     expect(gallery.track.wipes.map((w) => w.name)).toEqual(['white-block', 'dark-pillar', 'robot-door']);
   });
 
+  it('Photos grow along the wall so they stay legible as the camera pulls back', () => {
+    const { gallery } = make(60);
+    const items = [...gallery.photos.items].sort((a, b) => a.center[0] - b.center[0]);
+    const third = Math.floor(items.length / 3);
+    const size = (xs: typeof items) => xs.reduce((s, i) => s + Math.max(i.width, i.height), 0) / xs.length;
+    expect(size(items.slice(-third))).toBeGreaterThan(1.6 * size(items.slice(0, third)));
+  });
+
   it('walls never cross, in every cut', () => {
     for (const c of CUTS) {
       const { gallery } = make(20, c.mode, c.music);

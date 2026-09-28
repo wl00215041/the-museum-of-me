@@ -52,7 +52,8 @@ export function createWorldRenderer(o: WorldRendererOptions): MuseumRenderer {
   copyMaterial.depthTest = false;
   copyMaterial.depthWrite = false;
   composer.addPass(ao);
-  const dof = new DepthOfFieldEffect(camera, { focusDistance: 7, focusRange: 3.5, bokehScale: 2 });
+  // A deep field: only what is really near the lens (pillars, passers-by) blurs; walls and photos stay readable.
+  const dof = new DepthOfFieldEffect(camera, { focusDistance: 7, focusRange: 7, bokehScale: 1.5 });
   const bloom = new BloomEffect({ mipmapBlur: true, luminanceThreshold: 0.72, luminanceSmoothing: 0.25, intensity: 0.2 });
   const grade = new GradeEffect();
   composer.addPass(

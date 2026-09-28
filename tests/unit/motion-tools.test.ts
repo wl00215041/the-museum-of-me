@@ -26,7 +26,8 @@ function measure(video: string): { second: number; tx: number; zoom: number }[] 
   });
 }
 
-describe.skipIf(!ready)('motion tools', () => {
+// ffmpeg + OpenCV take a few seconds each, more on a busy machine.
+describe.skipIf(!ready)('motion tools', { timeout: 60_000 }, () => {
   it('a window sliding right over a still reads as the picture moving left, with no zoom', () => {
     const rows = measure(film('pan.mp4', "scale=2560:1440:force_original_aspect_ratio=increase,crop=2560:1440,crop=1280:720:'150*t':300"));
     expect(rows.length).toBeGreaterThanOrEqual(2);

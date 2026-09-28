@@ -80,6 +80,8 @@ export function buildGalleryWorld(sequence: Sequence, gallery: Gallery, content:
   const robotsGroup = new Group();
   robotsGroup.name = 'robots';
   robotsGroup.add(shell.robots);
+  // The robot room is the brightest space in the original (walls ~120–160 sRGB); this light lives only in its region.
+  robotsGroup.add(new HemisphereLight(0xffffff, 0xcfcac2, 0.15));
   const both = new Group();
   both.name = 'both';
   both.add(shell.both);
