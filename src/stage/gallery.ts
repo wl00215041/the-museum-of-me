@@ -410,16 +410,21 @@ export function computeGallery(input: GalleryInput): Gallery {
     floaters.push({ photoIndex: Math.floor(rnd() * n), pos: q, size: lerp(0.18, 0.45, rnd()), phase: rnd() * Math.PI * 2 });
   }
   const orbitFrom = Math.floor(pathF2.length * 0.45);
+  // The camera orbits looking at the platform, so the large photos stand a little ahead along its motion and
+  // just outside the orbit: they enter at the edge of the frame, pass close by and slide out (original 129–142 s).
   for (let k = 0; k < ROBOTS.large; k++) {
     const i = orbitFrom + Math.floor(((k + 0.5) / ROBOTS.large) * (pathF2.length - 3 - orbitFrom));
     const c = pathF2[i];
     const ahead = [pathF2[i + 2][0] - c[0], pathF2[i + 2][2] - c[2]];
     const len = Math.hypot(ahead[0], ahead[1]) || 1;
-    const [dx, dz] = [ahead[0] / len, ahead[1] / len];
-    const side = k % 2 === 0 ? 1 : -1;
+    const [tx, tz] = [ahead[0] / len, ahead[1] / len];
+    const out = [c[0] - px, c[2] - pz];
+    const olen = Math.hypot(out[0], out[1]) || 1;
+    const [ox, oz] = [out[0] / olen, out[1] / olen];
     for (let tries = 0; tries < 8; tries++) {
-      const off = 1.8 + 0.3 * tries + 0.6 * rnd();
-      const q: Vec3 = [c[0] - dz * side * off + dx * lerp(0.5, 2, rnd()), lerp(0.5, 2.2, rnd()), c[2] + dx * side * off + dz * lerp(0.5, 2, rnd())];
+      const off = 1.3 + 0.15 * tries + 0.6 * rnd();
+      const fwd = lerp(0.5, 2.5, rnd());
+      const q: Vec3 = [c[0] + ox * off + tx * fwd, lerp(0.5, 2.2, rnd()), c[2] + oz * off + tz * fwd];
       const d = clearance(q);
       if (overPlatform(q) || d <= 1.2 || d >= 4) continue;
       floaters.push({ photoIndex: Math.floor(rnd() * n), pos: q, size: lerp(0.8, 1.3, rnd()), phase: rnd() * Math.PI * 2 });
